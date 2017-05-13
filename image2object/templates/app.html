@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Image2Object</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #fff;
+				color: #000;
+				margin: 8px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+
+	<body>
+		<script src="static/lib/three_js/build/three.js"></script>
+		<script src="static/lib/three_js/examples/js/loaders/OBJLoader.js"></script>
+		<script src="static/lib/three_js/examples/js/modifiers/SubdivisionModifier.js"></script>
+		<script src="static/lib/three_js/examples/js/controls/OrbitControls.js"></script>
+		<script src="static/lib/FileSaver_js/FileSaver.min.js"></script>
+		<script src="static/lib/canvas-toBlob_js/canvas-toBlob.js"></script>
+		<script src="static/js/ObjCanvas.js"></script>
+
+		<div id="c" style="display:table">
+			<canvas id="drawCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
+			<div class="space" style="display:table-cell;width:64px;"></div>
+			<div id="containerScene" style="display:table-cell;width:512px;height:512px;border:solid 2px #000000"></div>
+			<!--
+			<canvas id="test" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
+			-->
+		</div>
+		<button onclick="clearDrawing()">Clear</button>
+		<button onclick="convertTo3D()">Convert to 3D</button>
+		<button onclick="predict3D()">Predict 3D Object</button>
+
+		<script>
+			var nWidth = 640;
+			var nHeight = 640;
+		
+			var drawCanvas = document.getElementById("drawCanvas");
+			var drawContext = drawCanvas.getContext("2d");
+			// drawing style
+			drawContext.lineCap = "round";
+			drawContext.lineWidth = 1;
+			drawContext.strokeStyle = 'rgb(0, 0, 0)';
+			drawContext.fillStyle = 'rgb(0, 0, 0)';
+
+			var mouseX = null;
+			var mouseY = null;
+
+			drawCanvas.addEventListener('mousemove', onMove, false);
+			drawCanvas.addEventListener('mousedown', onClick, false);
+			drawCanvas.addEventListener('mouseup', drawEnd, false);
+			drawCanvas.addEventListener('mouseout', drawEnd, false);
+ 
+			// On move of mouse pointer
+			function onMove(e) {
+				if (e.buttons === 1 || e.which === 1) {
+					var rect = e.target.getBoundingClientRect();
+					var X = ~~(e.clientX - rect.left);
+					var Y = ~~(e.clientY - rect.top);
+					draw(X, Y);
+				}
+			};
+
+			// On left click by mouse
+			function onClick(e) {
+				if (e.button === 0) {
+					var rect = e.target.getBoundingClientRect();
+					var X = ~~(e.clientX - rect.left);
+					var Y = ~~(e.clientY - rect.top);
+					//draw 関数にマウスの位置を渡す
+					draw(X, Y);
+				}
+			};
+
+			function draw(X, Y) {
+				drawContext.beginPath();
+				if (!mouseX) {
+					// start drawing from current mouse cursor position
+					drawContext.moveTo(X, Y);
+				} else {
+					// start drawing from previous mouse cursor position
+					drawContext.moveTo(mouseX, mouseY);
+				}
+				drawContext.lineTo(X, Y);
+				drawContext.stroke();
+
+				// for next call
+				mouseX = X;
+				mouseY = Y;
+			};
+
+			//左クリック終了、またはマウスが領域から外れた際、継続値を初期値に戻す
+			function drawEnd() {
+				mouseX = null;
+				mouseY = null;
+			}
+
+			function clearDrawing() {
+				drawContext.beginPath();
+				drawContext.fillStyle = "#ffffff";
+				drawContext.fillRect(0, 0, 512, 512);
+			}
+			
+			function convertTo3D() {
+				var imageData = drawContext.getImageData(0, 0, 512, 512);
+					var depthData = drawContext.getImageData(0, 0, nWidth, nHeight);
+
+				//var depth_path = "static/tmp/Sofa.png";
+				var depth_path = "static/tmp/Cylinder.png";
+
+				var canvas = document.createElement('canvas'); 
+				canvas.height = nHeight;
+				canvas.width = nWidth;
+				var ctx = canvas.getContext('2d');
+				var img = new Image();
+				img.onload = function() {
+					ctx.drawImage(img, 0, 0, nWidth, nHeight);
+					var meshData = new Uint8Array(nWidth*nHeight);
+					for (var x=0;x<nWidth;x++) {
+						for (var y=0;y<nHeight;y++) {
+							var pixel = ctx.getImageData(x, y, 1, 1);
+							var pData = pixel.data;
+							var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
+							meshData[x+nWidth*y] = d;
+						}
+					}
+
+					//canvasScene.loadObjFile('data/ROUND_SOFA.obj', {});
+					canvasScene.loadUint8Array(meshData);
+					canvasScene.animate();
+					
+					console.log("load end");
+				};
+				img.src = depth_path;
+			}
+			
+			// CSRF by django
+			function getCookie(name) {
+				var cookieValue = null;
+				if (document.cookie && document.cookie != '') {
+					var cookies = document.cookie.split(';');
+					for (var i = 0; i < cookies.length; i++) {
+						var cookie = cookies[i].trim();
+						// Does this cookie string begin with the name we want?
+						if (cookie.substring(0, name.length + 1) == (name + '=')) {
+							cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+							break;
+						}
+					}
+				}
+				return cookieValue;
+			}
+			
+			var predict3D = function() {
+				var drawCanvas = document.getElementById('drawCanvas');
+				var dataURL = drawCanvas.toDataURL("image/png");
+				
+				var request = new XMLHttpRequest();
+				request.open("post", "/predict", true);
+				request.onload = function (event) {
+					if (request.readyState === 4) {
+						if (request.status === 200) {
+							console.log(request.statusText); // status is "OK"
+
+							var res = request.response;
+							var jsonRes = JSON.parse(res);
+							var predictedImage = jsonRes.predictedImage;
+							
+							
+							var canvas = document.createElement('canvas'); 
+							canvas.height = nWidth;
+							canvas.width = nHeight;
+							var ctx = canvas.getContext('2d');
+							var img = new Image();
+							img.onload = function() {
+								ctx.drawImage(img, 0, 0, nWidth, nHeight);
+								var meshData = new Uint8Array(nWidth*nHeight);
+								for (var x=0;x<nWidth;x++) {
+									for (var y=0;y<nHeight;y++) {
+										var pixel = ctx.getImageData(x, y, 1, 1);
+										var pData = pixel.data;
+										var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
+										if (d!=255) {
+											console.log(d,x,y);
+										}
+										meshData[x+nWidth*y] = d;
+									}
+								}
+								canvasScene.loadUint8Array(meshData);
+								canvasScene.animate();
+							};
+							img.src = predictedImage;
+							
+							
+							/*
+							var canvas2 = document.getElementById('test'); 
+							canvas2.height = nHeight;
+							canvas2.width = nWidth;
+							var ctx2 = canvas2.getContext('2d');
+							var img2 = new Image();
+							img2.src = predictedImage;
+							img2.onload = function() {
+								ctx2.drawImage(img2, 0,0,nWidth,nHeight);
+							};
+							*/
+
+							
+						} else {
+							console.log("Bad Response : " + request.statusText);
+						}
+					}
+				};
+				request.onerror = function (event) {
+				  console.log(event.type); // => "error"
+				};
+				
+				request.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+				var param = "drawnImage="+dataURL;
+				request.send(param);
+			}
+
+			// Scene to render 3D object
+			var containerScene = null;
+			var canvasScene = null;
+			function initScene() {
+				containerScene = document.getElementById( 'containerScene' );
+				canvasScene = new ObjCanvas(containerScene);
+				canvasScene.animate();
+			}
+			initScene();
+
+		</script>
+
+	</body>
+</html
