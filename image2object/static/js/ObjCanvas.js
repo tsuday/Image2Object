@@ -195,7 +195,7 @@ ObjCanvas.prototype.loadObjFile = function(filePath, options) {
 					child.material = depthMaterial;
 				} else {
 					// Draw Contour
-					var eGeometry = new THREE.EdgesGeometry( child.geometry, this.thresholdAngle );
+					var eGeometry = new THREE.EdgesGeometry( child.geometry, _this.thresholdAngle );
 					var eMaterial = new THREE.LineBasicMaterial( { color: 0x0000000, linewidth: 8 } );
 					edges = new THREE.LineSegments( eGeometry, eMaterial );
 					child.add(edges);
@@ -239,12 +239,20 @@ ObjCanvas.prototype.loadObjFile = function(filePath, options) {
  * Load Uint8Array as an Object.<br>
  *
  * @param array {Uint8Array} Array obtained from depth map image.
+ *     Size of the array should be width * height of div element
+ *     specified by argument of constructor.
  * @deprecated This method is under development.
  */
 ObjCanvas.prototype.loadUint8Array = function (array) {
 	var _this = this;
 	this._objName = "Load from depth data";
 	this._bDepthMap = false;
+
+	var width = parseInt(this._divEle.style.width, 10);
+	var height = parseInt(this._divEle.style.height, 10);
+
+	console.log(width, height);
+
 
 	var arMax = -1;
 	var arMin = 256;
@@ -262,32 +270,32 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 
 	// vertex data of geometry
 	var uvs = [];
-	var ins = new Array(640);
-	for (var i=0;i<640;i++) {
-		ins[i] = new Array(640);
+	var ins = new Array(width);
+	for (var i=0;i<width;i++) {
+		ins[i] = new Array(height);
 	}
-	var outs = new Array(640);
-	for (var i=0;i<640;i++) {
-		outs[i] = new Array(640);
+	var outs = new Array(width);
+	for (var i=0;i<width;i++) {
+		outs[i] = new Array(height);
 	}
 	var geomIndex = new Array(2);
 	geomIndex[0] = ins;
 	geomIndex[1] = outs;
 
-	for(var y = 0 ; y < 640 ; y++) {
-		for(var x = 0 ; x < 640 ; x++) {
-			if (array[x+y*640] === 0) {
+	for(var y = 0 ; y < height ; y++) {
+		for(var x = 0 ; x < width ; x++) {
+			if (array[x+y*width] === 0) {
 				continue;
 			}
 			geomIndex[0][x][y] = uvs.length;
-			geometry.vertices.push(new THREE.Vector3(x - 320, y - 320, 0.5*(array[x + y*640] - arMin) * (255.0/(arMax-arMin))  ));
-			uvs.push(new THREE.Vector2(x / 640, y / 640));
+			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, 0.5*(array[x + y*width] - arMin) * (255.0/(arMax-arMin))  ));
+			uvs.push(new THREE.Vector2(x / width, y / height));
 		}
 	}
 
 	// face data of geometry
-	for(var y = 0 ; y < 640 - 1 ; y++) {
-		for(var x = 0 ; x < 640 - 1 ; x++) {
+	for(var y = 0 ; y < height - 1 ; y++) {
+		for(var x = 0 ; x < width - 1 ; x++) {
 			var i1 = geomIndex[0][x][y];
 			var i2 = geomIndex[0][x+1][y];
 			var i3 = geomIndex[0][x+1][y+1];
@@ -304,7 +312,7 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 			}
 			// triangle i2 i3 i4
 			if (i2 != undefined && i3 != undefined && i4 != undefined) {
-				var b = x + y * 640;
+				var b = x + y * width;
 				geometry.faces.push(
 					new THREE.Face3(i2, i3, i4)
 				);
@@ -314,7 +322,7 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 			}
 			
 			/*
-			var b = x + y * 640;
+			var b = x + y * width;
 			var m = (x + y) & 1;
 			geometry.faces.push(
 				new THREE.Face3(b + 0, b +  1, b + 65, null, null, m),
@@ -329,20 +337,20 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	}
 
 	// hidden planes
-	for(var y = 0 ; y < 640 ; y++) {
-		for(var x = 0 ; x < 640 ; x++) {
-			if (array[x+y*640] === 0) {
+	for(var y = 0 ; y < height ; y++) {
+		for(var x = 0 ; x < width ; x++) {
+			if (array[x+y*width] === 0) {
 				continue;
 			}
 			geomIndex[1][x][y] = uvs.length;
-			geometry.vertices.push(new THREE.Vector3(x - 320, y - 320, - 0.5 * (array[x + y*640] - arMin) * (255.0/(arMax-arMin))  ));
-			uvs.push(new THREE.Vector2(x / 640, y / 640));
+			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, - 0.5 * (array[x + y*width] - arMin) * (255.0/(arMax-arMin))  ));
+			uvs.push(new THREE.Vector2(x / width, y / height));
 		}
 	}
 
 	// face data of geometry
-	for(var y = 0 ; y < 640 - 1 ; y++) {
-		for(var x = 0 ; x < 640 - 1 ; x++) {
+	for(var y = 0 ; y < height - 1 ; y++) {
+		for(var x = 0 ; x < width - 1 ; x++) {
 			var i1 = geomIndex[1][x][y];
 			var i2 = geomIndex[1][x+1][y];
 			var i3 = geomIndex[1][x+1][y+1];
@@ -359,7 +367,7 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 			}
 			// triangle i2 i3 i4
 			if (i2 != undefined && i3 != undefined && i4 != undefined) {
-				var b = x + y * 640;
+				var b = x + y * width;
 				geometry.faces.push(
 					new THREE.Face3(i2, i4, i3)
 				);
@@ -372,8 +380,8 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	
 	// 表面と裏面の間
 	// TODO:法線の方向を考えるのが面倒なので両面入れている
-	for(var y = 1 ; y < 640 - 1 ; y++) {
-		for(var x = 1 ; x < 640 - 1 ; x++) {
+	for(var y = 1 ; y < height - 1 ; y++) {
+		for(var x = 1 ; x < width - 1 ; x++) {
 			if (geomIndex[0][x][y] && (geomIndex[0][x-1][y]==undefined || geomIndex[0][x][y-1]==undefined || geomIndex[0][x+1][y]==undefined || geomIndex[0][x][y+1]==undefined)) {
 				// 横・縦でつながるならそちらを優先
 				var ix, iy;
@@ -438,12 +446,12 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	
 /*
 	// args:width, height, nPlanesX, nPlanesY
-	var geometry = new THREE.PlaneBufferGeometry(640, 640, 640-1, 640-1);
+	var geometry = new THREE.PlaneBufferGeometry(width, height, width-1, height-1);
 	//geometry.rotateX( - Math.PI / 2 );
 	var vertices = geometry.attributes.position.array;
-	for (var x=0;x<640+1;x++) {
-		for (var y=0;y<640+1;y++) {
-			var index = (y*(640+1)+x);
+	for (var x=0;x<width+1;x++) {
+		for (var y=0;y<height+1;y++) {
+			var index = (y*(width+1)+x);
 			vertices[index * 3 + 2] = array[index];
 		}
 	}
@@ -464,7 +472,7 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	var mesh = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial() );
 //	var mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial() );
 //	var mesh = new THREE.Mesh( geometry, new THREE.MeshDepthMaterial() );
-	console.log(geometry);
+//	console.log(geometry);
 
 /*
 	// Bounding box
