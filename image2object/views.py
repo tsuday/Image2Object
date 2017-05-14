@@ -1,15 +1,28 @@
 from django.shortcuts import render
 
+# import django modules for CSRF
 from django.views.decorators.csrf import csrf_protect
 from django.template.context_processors import csrf
 from django.shortcuts import render_to_response
 
+# import django modules for Http handling
 from django.http import HttpResponse
 from django.http import Http404
 
-import json
 import re
+import json
 import base64
+
+# import AutoEncoder program
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/libraries")
+import AutoEncoder
+
+
+# PIL
+#import io
+
 
 # Regex to extract base64 image data
 imageUrlPattern = re.compile('drawnImage=data:image/png;base64,(.*)$')
