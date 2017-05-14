@@ -28,17 +28,15 @@
 			<canvas id="drawCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
 			<div class="space" style="display:table-cell;width:64px;"></div>
 			<div id="containerScene" style="display:table-cell;width:512px;height:512px;border:solid 2px #000000"></div>
-			<!--
 			<canvas id="test" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
-			-->
 		</div>
 		<button onclick="clearDrawing()">Clear</button>
 		<button onclick="convertTo3D()">Convert to 3D</button>
 		<button onclick="predict3D()">Predict 3D Object</button>
 
 		<script>
-			var nWidth = 640;
-			var nHeight = 640;
+			var nWidth = 512;
+			var nHeight = 512;
 		
 			var drawCanvas = document.getElementById("drawCanvas");
 			var drawContext = drawCanvas.getContext("2d");
@@ -108,7 +106,7 @@
 			
 			function convertTo3D() {
 				var imageData = drawContext.getImageData(0, 0, 512, 512);
-					var depthData = drawContext.getImageData(0, 0, nWidth, nHeight);
+				var depthData = drawContext.getImageData(0, 0, nWidth, nHeight);
 
 				//var depth_path = "static/tmp/Sofa.png";
 				var depth_path = "static/tmp/Cylinder.png";
@@ -184,7 +182,9 @@
 									for (var y=0;y<nHeight;y++) {
 										var pixel = ctx.getImageData(x, y, 1, 1);
 										var pData = pixel.data;
-										var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
+										//var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
+										//var d = 255 - pData[3];
+										var d = pData[3];
 										if (d!=255) {
 											console.log(d,x,y);
 										}
@@ -197,7 +197,7 @@
 							img.src = predictedImage;
 							
 							
-							/*
+							//*
 							var canvas2 = document.getElementById('test'); 
 							canvas2.height = nHeight;
 							canvas2.width = nWidth;
@@ -207,7 +207,7 @@
 							img2.onload = function() {
 								ctx2.drawImage(img2, 0,0,nWidth,nHeight);
 							};
-							*/
+							//*/
 
 							
 						} else {
