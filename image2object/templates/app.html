@@ -70,7 +70,6 @@
 					var rect = e.target.getBoundingClientRect();
 					var X = ~~(e.clientX - rect.left);
 					var Y = ~~(e.clientY - rect.top);
-					//draw 関数にマウスの位置を渡す
 					draw(X, Y);
 				}
 			};
@@ -92,7 +91,6 @@
 				mouseY = Y;
 			};
 
-			//左クリック終了、またはマウスが領域から外れた際、継続値を初期値に戻す
 			function drawEnd() {
 				mouseX = null;
 				mouseY = null;
@@ -183,12 +181,8 @@
 										var pixel = ctx.getImageData(x, y, 1, 1);
 										var pData = pixel.data;
 										//var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
-										//var d = 255 - pData[3];
 										var d = pData[3];
-										if (d!=255) {
-											console.log(d,x,y);
-										}
-										meshData[x+nWidth*y] = d;
+										meshData[(nWidth-1-x)+nWidth*y] = d;
 									}
 								}
 								canvasScene.loadUint8Array(meshData);
