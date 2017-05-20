@@ -1,5 +1,8 @@
 from django.shortcuts import render
 
+import numpy as np
+import tensorflow as tf
+
 # import django modules for CSRF
 from django.views.decorators.csrf import csrf_protect
 from django.template.context_processors import csrf
@@ -17,15 +20,23 @@ import base64
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/libraries")
-import AutoEncoder
+from AutoEncoder import AutoEncoder
 
 
 # PIL
-#import io
-
+from PIL import Image
+from io import BytesIO
 
 # Regex to extract base64 image data
 imageUrlPattern = re.compile('drawnImage=data:image/png;base64,(.*)$')
+
+
+# Initialize AutoEncoder
+print("Start initializing AutoEncoder...")
+autoEncoder = AutoEncoder("", 1, False)
+autoEncoder.saver.restore(autoEncoder.sess, os.path.dirname(__file__) + "/tensorflow_session/s-36000")
+print("End initializing AutoEncoder...")
+
 
 # response to request to the top page
 @csrf_protect
@@ -37,7 +48,6 @@ def init(request):
 
     return render_to_response('app.html', c);
     #return render_to_response(request, 'app.html', c);
-    #return render(request, 'app.html', {})
 
 # response predicted image to the user drawn image
 @csrf_protect
@@ -46,15 +56,49 @@ def predict(request):
     if request.method != 'POST':
         raise Http404
 
-    # convert bytes(request.body) to string by "decode"
+    # Convert bytes(request.body) to string
     drawnImage = request.body.decode();
 
-    drawnImage = imageUrlPattern.match(drawnImage).group(1)
+    # Remove base64 header "data:image/png;base64,"
+    drawnImageStr = imageUrlPattern.match(drawnImage).group(1)
 
-    #print(drawnImage)
+    # Open with Pillow
+    drawnImageImg = Image.open(BytesIO(base64.b64decode(drawnImageStr)))
+    
+    # Convert to numpy array and reshape
+    # drawnImage shape : (512, 512, 4)
+    drawnImageArray = np.asarray(drawnImageImg)
+    # retrieve alpha value from RGBA
+    drawnImageAlphaArray = drawnImageArray[:, :, 3]
+    # reshape to (1, 512*512)
+    drawnImageInput = drawnImageAlphaArray.reshape((1, AutoEncoder.nPixels))
 
-     # JSON format
-    response = json.dumps({ 'predictedImage' : "data:image/png;base64," + drawnImage })
+    # out shape : (1, 512, 512, 1)
+    out, x_input = autoEncoder.sess.run([autoEncoder.output, autoEncoder.x_image], feed_dict={autoEncoder.x:drawnImageInput, autoEncoder.keep_prob:1.0})
+
+    # arrange np array as the same shape as input "drawnImage"
+    predictedImageArray = drawnImageArray
+    predictedImageArray.flags.writeable = True
+
+    predictedImageArray[0:512, 0:512, 3] = out[0, :, :, 0] * 256
+
+    # Convert numpy array to Pillow image
+    predictedImage = Image.fromarray(np.uint8(predictedImageArray))
+
+    # Convert Pillow image to base64
+    bufferdata = BytesIO()
+    predictedImage.save(bufferdata, format="PNG")
+    bufferdata.seek(0)
+    predictedImageBytes = base64.b64encode(bufferdata.read())
+    predictedImageStr = predictedImageBytes.decode("ascii")
+
+    #print("debug")
+    #print(predictedImageArray[:, :, 3])
+    #print(drawnImageArray[:, :, 3])
+
+    # Return JSON format
+    #response = json.dumps({ 'predictedImage' : "data:image/png;base64," + predictedImageStr })
+    response = json.dumps({ 'predictedImage' : "data:image/png;base64," + drawnImageStr })
 
     return HttpResponse(response, content_type="text/javascript")
 
