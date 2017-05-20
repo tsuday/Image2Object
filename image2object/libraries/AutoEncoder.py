@@ -1,5 +1,3 @@
-## Class definition for AutoEncoder
-
 import tensorflow as tf
 import numpy as np
 import random
@@ -17,48 +15,64 @@ class AutoEncoder:
     nWidth = 512
     nHeight = 512
     nPixels = nWidth * nHeight
-    batch_size = 8
     read_threads = 1
     outputWidth = nWidth
     outputHeight = nHeight
 
-    def __init__(self):
+    def __init__(self, training_csv_file_name, batch_size, b_data_augmentation):
+        self.batch_size = batch_size
+        self.b_data_augmentation = b_data_augmentation
+        
         with tf.Graph().as_default():
             self.prepare_model()
             self.prepare_session()
-            self.prepare_batch()
+            self.prepare_batch(training_csv_file_name)
 
     def prepare_model(self):
         with tf.name_scope("input"):
             x = tf.placeholder(tf.float32, [None, AutoEncoder.nPixels])
-            x_image = tf.cast(tf.reshape(x, [AutoEncoder.batch_size, AutoEncoder.nWidth, AutoEncoder.nHeight, 1]), tf.float32)
+            x_image = tf.cast(tf.reshape(x, [self.batch_size, AutoEncoder.nWidth, AutoEncoder.nHeight, 1]), tf.float32)
 
             t = tf.placeholder(tf.float32, [None, AutoEncoder.nPixels])
-            t_image = tf.reshape(t, [AutoEncoder.batch_size, AutoEncoder.nWidth, AutoEncoder.nHeight, 1])
-            
+            t_image = tf.reshape(t, [self.batch_size, AutoEncoder.nWidth, AutoEncoder.nHeight, 1])
+
+            # keep probabilities for dropout layer
+            keep_prob = tf.placeholder(tf.float32)
+            keep_all = tf.constant(1.0, dtype=tf.float32)
+
             ## Data Augmentation
-            # flip each images left right and up down randomly
-            x_tmp_array = []
-            t_tmp_array = []
-            for i in range(AutoEncoder.batch_size):
-                x_tmp = x_image[i, :, :, :]
-                t_tmp = t_image[i, :, :, :]
+            if self.b_data_augmentation:
+                x_tmp_array = []
+                t_tmp_array = []
+                for i in range(self.batch_size):
+                    x_tmp = x_image[i, :, :, :]
+                    t_tmp = t_image[i, :, :, :]
 
-                rint = random.randint(0, 2)
-                if rint%2 != 0:
-                    x_tmp = tf.image.flip_left_right(x_tmp)
-                    t_tmp = tf.image.flip_left_right(t_tmp)
+                    # flip each images left right and up down randomly
+                    rint = random.randint(0, 2)
+                    if rint%2 != 0:
+                        x_tmp = tf.image.flip_left_right(x_tmp)
+                        t_tmp = tf.image.flip_left_right(t_tmp)
 
-                rint = random.randint(0, 2)
-                if rint%2 != 0:
-                    x_tmp = tf.image.flip_up_down(x_tmp)
-                    t_tmp = tf.image.flip_up_down(t_tmp)
+                    rint = random.randint(0, 4)
+                    # Some images has meaning in vertical direction,
+                    # so images are flipped vertically in lower probability than horizontal flipping
+                    if rint%4 == 0:
+                        x_tmp = tf.image.flip_up_down(x_tmp)
+                        t_tmp = tf.image.flip_up_down(t_tmp)
 
-                x_tmp_array.append(tf.expand_dims(x_tmp, 0))
-                t_tmp_array.append(tf.expand_dims(t_tmp, 0))
+                    rint = random.randint(0, 4)
+                    # Some images has meaning in vertical direction,
+                    # so images are transposed in lower probability than horizontal flipping
+                    if rint%4 == 0:
+                        x_tmp = tf.image.transpose_image(x_tmp)
+                        t_tmp = tf.image.transpose_image(t_tmp)
 
-            x_image = tf.concat(x_tmp_array, axis=0)
-            t_image = tf.concat(t_tmp_array, axis=0)
+                    x_tmp_array.append(tf.expand_dims(x_tmp, 0))
+                    t_tmp_array.append(tf.expand_dims(t_tmp, 0))
+
+                x_image = tf.concat(x_tmp_array, axis=0)
+                t_image = tf.concat(t_tmp_array, axis=0)
             
             self.x_image = x_image
 
@@ -135,18 +149,18 @@ class AutoEncoder:
                 layers.append(output)
 
         decode_output_channels = [
-            #(out_channels_base * 8, 0.5), # decoder_9: [batch_size, 1, 1, out_channels_base * 8] => [batch_size, 2, 2, out_channels_base * 8 * 2]
-            (out_channels_base * 8, 0.5),  # decoder_8: [batch_size, 2, 2, out_channels_base * 8 * 2] => [batch_size, 4, 4, out_channels_base * 8 * 2]
-            (out_channels_base * 8, 0.5),  # decoder_7: [batch_size, 4, 4, out_channels_base * 8 * 2] => [batch_size, 8, 8, out_channels_base * 8 * 2]
-            (out_channels_base * 8, 0.0),  # decoder_6: [batch_size, 8, 8, out_channels_base * 8 * 2] => [batch_size, 16, 16, out_channels_base * 8 * 2]
-            (out_channels_base * 8, 0.0),  # decoder_5: [batch_size, 16, 16, out_channels_base * 8 * 2] => [batch_size, 32, 32, out_channels_base * 4 * 2]
-            (out_channels_base * 4, 0.0),  # decoder_4: [batch_size, 32, 32, out_channels_base * 4 * 2] => [batch_size, 64, 64, out_channels_base * 2 * 2]
-            (out_channels_base * 2, 0.0),  # decoder_3: [batch_size, 64, 64, out_channels_base * 4 * 2] => [batch_size, 128, 128, out_channels_base * 2 * 2]
-            (out_channels_base, 0.0),      # decoder_2: [batch_size, 128, 128, out_channels_base * 2 * 2] => [batch_size, 256, 256, out_channels_base * 2]
+            #(out_channels_base * 8, keep_prob), # decoder_9: [batch_size, 1, 1, out_channels_base * 8] => [batch_size, 2, 2, out_channels_base * 8 * 2]
+            (out_channels_base * 8, keep_prob),  # decoder_8: [batch_size, 2, 2, out_channels_base * 8 * 2] => [batch_size, 4, 4, out_channels_base * 8 * 2]
+            (out_channels_base * 8, keep_prob),  # decoder_7: [batch_size, 4, 4, out_channels_base * 8 * 2] => [batch_size, 8, 8, out_channels_base * 8 * 2]
+            (out_channels_base * 8, keep_all),  # decoder_6: [batch_size, 8, 8, out_channels_base * 8 * 2] => [batch_size, 16, 16, out_channels_base * 8 * 2]
+            (out_channels_base * 8, keep_all),  # decoder_5: [batch_size, 16, 16, out_channels_base * 8 * 2] => [batch_size, 32, 32, out_channels_base * 4 * 2]
+            (out_channels_base * 4, keep_all),  # decoder_4: [batch_size, 32, 32, out_channels_base * 4 * 2] => [batch_size, 64, 64, out_channels_base * 2 * 2]
+            (out_channels_base * 2, keep_all),  # decoder_3: [batch_size, 64, 64, out_channels_base * 4 * 2] => [batch_size, 128, 128, out_channels_base * 2 * 2]
+            (out_channels_base    , keep_all),      # decoder_2: [batch_size, 128, 128, out_channels_base * 2 * 2] => [batch_size, 256, 256, out_channels_base * 2]
         ]
         
         num_encoder_layers = len(layers)
-        for decoder_layer, (out_channels, dropout) in enumerate(decode_output_channels):
+        for decoder_layer, (out_channels, dropout_keep_prob) in enumerate(decode_output_channels):
             skip_layer = num_encoder_layers - decoder_layer - 1
             with tf.variable_scope("decoder_%d" % (skip_layer + 1)):
                 if decoder_layer == 0:
@@ -162,8 +176,8 @@ class AutoEncoder:
                 output = decode(rectified, out_channels)
                 output = batchnorm(output)
 
-                if dropout > 0.0:
-                    output = tf.nn.dropout(output, keep_prob=1 - dropout)
+                # dropout layer
+                output = tf.cond(dropout_keep_prob < 1.0, lambda: tf.nn.dropout(output, keep_prob=dropout_keep_prob), lambda: output)
 
                 layers.append(output)
 
@@ -192,6 +206,7 @@ class AutoEncoder:
         
         self.x = x
         self.t = t
+        self.keep_prob = keep_prob
         self.train_step = train_step
         self.output = output
         self.t_compare = t_compare
@@ -236,8 +251,8 @@ class AutoEncoder:
             min_after_dequeue=min_after_dequeue)
         return example_batch, label_batch
 
-    def prepare_batch(self):
-        image_batch, depth_batch = self.input_pipeline(['dataList.csv'], AutoEncoder.batch_size, AutoEncoder.read_threads)
+    def prepare_batch(self, training_csv_file_name):
+        image_batch, depth_batch = self.input_pipeline([training_csv_file_name], self.batch_size, AutoEncoder.read_threads)
         
         self.image_batch = image_batch
         self.depth_batch = depth_batch

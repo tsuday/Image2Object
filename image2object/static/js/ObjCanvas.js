@@ -65,7 +65,6 @@ var ObjCanvas = function(divEle) {
 	divEle.appendChild( this._renderer.domElement );
 
 	document.addEventListener( 'mousemove', this.onDocumentMouseMove, false );
-	window.addEventListener( 'resize', this.onWindowResize, false );
 };
 
 /**
@@ -95,17 +94,6 @@ ObjCanvas.prototype.save = function(fileName) {
 		}, "image/png");
 	}
 
-};
-
-/**
- * Event handler for window resize.
- */
-ObjCanvas.prototype.onWindowResize = function () {
-	this._windowHalfX = this._containerSizeX / 2;
-	this._windowHalfY = this._containerSizeY / 2;
-	this._camera.aspect = this._containerSizeX / this._containerSizeY;
-	this._camera.updateProjectionMatrix();
-	this._renderer.setSize( this._containerSizeX, this._containerSizeY );
 };
 
 /**
@@ -282,14 +270,18 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	geomIndex[0] = ins;
 	geomIndex[1] = outs;
 
+	var invWidth = 1.0 / width;
+	var invHeight = 1.0 / height;
+	var ratioDepthTo255 = 255.0/(arMax-arMin);
 	for(var y = 0 ; y < height ; y++) {
+		var yMulWidth = y*width;
 		for(var x = 0 ; x < width ; x++) {
-			if (array[x+y*width] === 0) {
+			if (array[x+yMulWidth] === 0) {
 				continue;
 			}
 			geomIndex[0][x][y] = uvs.length;
-			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, 0.5*(array[x + y*width] - arMin) * (255.0/(arMax-arMin))  ));
-			uvs.push(new THREE.Vector2(x / width, y / height));
+			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, 0.5*(array[x + yMulWidth] - arMin) * ratioDepthTo255 ));
+			uvs.push(new THREE.Vector2(x * invWidth, y * invHeight));
 		}
 	}
 
@@ -312,7 +304,7 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 			}
 			// triangle i2 i3 i4
 			if (i2 != undefined && i3 != undefined && i4 != undefined) {
-				var b = x + y * width;
+				//var b = x + y * width;
 				geometry.faces.push(
 					new THREE.Face3(i2, i3, i4)
 				);
@@ -338,13 +330,14 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 
 	// hidden planes
 	for(var y = 0 ; y < height ; y++) {
+		var yMulWidth = y*width;
 		for(var x = 0 ; x < width ; x++) {
-			if (array[x+y*width] === 0) {
+			if (array[x+yMulWidth] === 0) {
 				continue;
 			}
 			geomIndex[1][x][y] = uvs.length;
-			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, - 0.5 * (array[x + y*width] - arMin) * (255.0/(arMax-arMin))  ));
-			uvs.push(new THREE.Vector2(x / width, y / height));
+			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, - 0.5 * (array[x + yMulWidth] - arMin) * ratioDepthTo255 ));
+			uvs.push(new THREE.Vector2(x * invWidth, y * invHeight));
 		}
 	}
 
@@ -367,7 +360,7 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 			}
 			// triangle i2 i3 i4
 			if (i2 != undefined && i3 != undefined && i4 != undefined) {
-				var b = x + y * width;
+				//var b = x + y * width;
 				geometry.faces.push(
 					new THREE.Face3(i2, i4, i3)
 				);
