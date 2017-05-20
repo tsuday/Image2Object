@@ -188,6 +188,9 @@
 								canvasScene.loadUint8Array(meshData);
 								canvasScene.animate();
 							};
+							img.onerror = function(e) {
+								console.log(e);
+							}
 							img.src = predictedImage;
 							
 							
@@ -197,10 +200,10 @@
 							canvas2.width = nWidth;
 							var ctx2 = canvas2.getContext('2d');
 							var img2 = new Image();
-							img2.src = predictedImage;
 							img2.onload = function() {
 								ctx2.drawImage(img2, 0,0,nWidth,nHeight);
 							};
+							img2.src = predictedImage;
 							//*/
 
 							
