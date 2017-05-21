@@ -33,6 +33,7 @@
 		<button onclick="clearDrawing()">Clear</button>
 		<button onclick="convertTo3D()">Convert to 3D</button>
 		<button onclick="predict3D()">Predict 3D Object</button>
+		<button onclick="clearPredictedObject()">Clear Predicted Object</button>
 
 		<script>
 			var nWidth = 512;
@@ -219,7 +220,13 @@
 				request.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
 				var param = "drawnImage="+dataURL;
 				request.send(param);
-			}
+			};
+			
+			var clearPredictedObject = function() {
+				if (canvasScene) {
+					canvasScene.clear();
+				}
+			};
 
 			// Scene to render 3D object
 			var containerScene = null;

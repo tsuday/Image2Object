@@ -672,3 +672,14 @@ ObjCanvas.prototype.autoSave = function(distRatio) {
 ObjCanvas.prototype.getObjectName = function() {
 	return this._objName;
 };
+
+/**
+ * Clear the object drawn on canvas.
+ */
+ObjCanvas.prototype.clear = function() {
+
+	while(this._scene.children.length > 0){
+		console.log(this._scene.children[0]);
+		this._scene.remove(this._scene.children[0]);
+	}
+};
