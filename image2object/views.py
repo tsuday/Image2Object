@@ -68,19 +68,24 @@ def predict(request):
     # Convert to numpy array and reshape
     # drawnImage shape : (512, 512, 4)
     drawnImageArray = np.asarray(drawnImageImg)
+    
     # retrieve alpha value from RGBA
-    drawnImageAlphaArray = drawnImageArray[:, :, 3]
+    drawnImageAlphaArray = 255 - drawnImageArray[:, :, 3]
+
     # reshape to (1, 512*512)
     drawnImageInput = drawnImageAlphaArray.reshape((1, AutoEncoder.nPixels))
 
     # out shape : (1, 512, 512, 1)
     out, x_input = autoEncoder.sess.run([autoEncoder.output, autoEncoder.x_image], feed_dict={autoEncoder.x:drawnImageInput, autoEncoder.keep_prob:1.0})
 
+
     # arrange np array as the same shape as input "drawnImage"
     predictedImageArray = drawnImageArray
     predictedImageArray.flags.writeable = True
 
-    predictedImageArray[0:512, 0:512, 3] = out[0, :, :, 0] * 256
+    output = 255 - out[0, :, :, 0]
+    np.clip(output, 0, 255, out=output)
+    predictedImageArray[:, :, 3] = output
 
     # Convert numpy array to Pillow image
     predictedImage = Image.fromarray(np.uint8(predictedImageArray))
@@ -92,13 +97,8 @@ def predict(request):
     predictedImageBytes = base64.b64encode(bufferdata.read())
     predictedImageStr = predictedImageBytes.decode("ascii")
 
-    #print("debug")
-    #print(predictedImageArray[:, :, 3])
-    #print(drawnImageArray[:, :, 3])
-
     # Return JSON format
-    #response = json.dumps({ 'predictedImage' : "data:image/png;base64," + predictedImageStr })
-    response = json.dumps({ 'predictedImage' : "data:image/png;base64," + drawnImageStr })
+    response = json.dumps({ 'predictedImage' : "data:image/png;base64," + predictedImageStr })
 
     return HttpResponse(response, content_type="text/javascript")
 
