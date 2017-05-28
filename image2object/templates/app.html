@@ -23,6 +23,7 @@
 		<script src="static/lib/FileSaver_js/FileSaver.min.js"></script>
 		<script src="static/lib/canvas-toBlob_js/canvas-toBlob.js"></script>
 		<script src="static/js/ObjCanvas.js"></script>
+		<script src="static/js/DrawCanvas.js"></script>
 
 		<div id="c" style="display:table">
 			<canvas id="drawCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
@@ -30,7 +31,7 @@
 			<div id="containerScene" style="display:table-cell;width:512px;height:512px;border:solid 2px #000000"></div>
 			<canvas id="test" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
 		</div>
-		<button onclick="clearDrawing()">Clear</button>
+		<button id="clearDrawingBtn">Clear</button>
 		<button onclick="convertTo3D()">Convert to 3D</button>
 		<button onclick="predict3D()">Predict 3D Object</button>
 		<button onclick="clearPredictedObject()">Clear Predicted Object</button>
@@ -38,70 +39,14 @@
 		<script>
 			var nWidth = 512;
 			var nHeight = 512;
-		
-			var drawCanvas = document.getElementById("drawCanvas");
-			var drawContext = drawCanvas.getContext("2d");
-			// drawing style
-			drawContext.lineCap = "round";
-			drawContext.lineWidth = 1;
-			drawContext.strokeStyle = 'rgb(0, 0, 0)';
-			drawContext.fillStyle = 'rgb(0, 0, 0)';
 
-			var mouseX = null;
-			var mouseY = null;
-
-			drawCanvas.addEventListener('mousemove', onMove, false);
-			drawCanvas.addEventListener('mousedown', onClick, false);
-			drawCanvas.addEventListener('mouseup', drawEnd, false);
-			drawCanvas.addEventListener('mouseout', drawEnd, false);
- 
-			// On move of mouse pointer
-			function onMove(e) {
-				if (e.buttons === 1 || e.which === 1) {
-					var rect = e.target.getBoundingClientRect();
-					var X = ~~(e.clientX - rect.left);
-					var Y = ~~(e.clientY - rect.top);
-					draw(X, Y);
-				}
+			var drawCanvasEle = document.getElementById("drawCanvas");
+			var drawCanvas = new DrawCanvas(drawCanvasEle);
+			
+			var clearDrawingBtn = document.getElementById("clearDrawingBtn");
+			clearDrawingBtn.onclick = function() {
+				drawCanvas.clear();
 			};
-
-			// On left click by mouse
-			function onClick(e) {
-				if (e.button === 0) {
-					var rect = e.target.getBoundingClientRect();
-					var X = ~~(e.clientX - rect.left);
-					var Y = ~~(e.clientY - rect.top);
-					draw(X, Y);
-				}
-			};
-
-			function draw(X, Y) {
-				drawContext.beginPath();
-				if (!mouseX) {
-					// start drawing from current mouse cursor position
-					drawContext.moveTo(X, Y);
-				} else {
-					// start drawing from previous mouse cursor position
-					drawContext.moveTo(mouseX, mouseY);
-				}
-				drawContext.lineTo(X, Y);
-				drawContext.stroke();
-
-				// for next call
-				mouseX = X;
-				mouseY = Y;
-			};
-
-			function drawEnd() {
-				mouseX = null;
-				mouseY = null;
-			}
-
-			function clearDrawing() {
-				drawContext.beginPath();
-				drawContext.fillStyle = "#ffffff";
-				drawContext.fillRect(0, 0, 512, 512);
-			}
 			
 			function convertTo3D() {
 				var imageData = drawContext.getImageData(0, 0, 512, 512);
@@ -154,7 +99,6 @@
 			}
 			
 			var predict3D = function() {
-				var drawCanvas = document.getElementById('drawCanvas');
 				var dataURL = drawCanvas.toDataURL("image/png");
 				
 				var request = new XMLHttpRequest();
@@ -204,6 +148,10 @@
 							img2.onload = function() {
 								ctx2.drawImage(img2, 0,0,nWidth,nHeight);
 							};
+							img2.onerror = function(e) {
+								console.log("depth image draw error");
+								console.log(e);
+							}
 							img2.src = predictedImage;
 							//*/
 
