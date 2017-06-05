@@ -241,11 +241,29 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 
 	console.log(width, height);
 
+	// avoid processing every pixels for performance
+	var dx = 4;
+	var dy = 4;
+	
+	width /= dx;
+	height /= dy;
+
+	// stretch ratio of geometry in x and y directions
+	var rx = 3.2*dx;
+	var ry = 3.2*dy;
+	var rz = 2.5;
+
+	// pixel whose color is similar to white will be clipped to white
+	var thClip = 20;
 
 	var arMax = -1;
 	var arMin = 256;
 	for (var i=0;i<array.length;i++) {
-		if (array[i]===0) continue;
+		if (array[i] < thClip) {
+			array[i] = 0;
+			continue;
+		}
+
 		arMax = arMax < array[i] ? array[i] : arMax;
 		arMin = arMin > array[i] ? array[i] : arMin;
 	}
@@ -259,11 +277,9 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	// vertex data of geometry
 	var uvs = [];
 	var ins = new Array(width);
-	for (var i=0;i<width;i++) {
-		ins[i] = new Array(height);
-	}
 	var outs = new Array(width);
 	for (var i=0;i<width;i++) {
+		ins[i] = new Array(height);
 		outs[i] = new Array(height);
 	}
 	var geomIndex = new Array(2);
@@ -274,13 +290,13 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	var invHeight = 1.0 / height;
 	var ratioDepthTo255 = 255.0/(arMax-arMin);
 	for(var y = 0 ; y < height ; y++) {
-		var yMulWidth = y*width;
+		var yMulWidth = y*width*dx*dy;
 		for(var x = 0 ; x < width ; x++) {
-			if (array[x+yMulWidth] === 0) {
+			if (array[x*dx+yMulWidth] === 0) {
 				continue;
 			}
 			geomIndex[0][x][y] = uvs.length;
-			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, 0.5*(array[x + yMulWidth] - arMin) * ratioDepthTo255 ));
+			geometry.vertices.push(new THREE.Vector3(rx * (x-width*0.5), ry * (y-height*0.5), 0.5*(array[x*dx + yMulWidth] - arMin) * ratioDepthTo255 * rz ));
 			uvs.push(new THREE.Vector2(x * invWidth, y * invHeight));
 		}
 	}
@@ -330,13 +346,13 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 
 	// hidden planes
 	for(var y = 0 ; y < height ; y++) {
-		var yMulWidth = y*width;
+		var yMulWidth = y*width*dx*dy;
 		for(var x = 0 ; x < width ; x++) {
-			if (array[x+yMulWidth] === 0) {
+			if (array[x*dx+yMulWidth] === 0) {
 				continue;
 			}
 			geomIndex[1][x][y] = uvs.length;
-			geometry.vertices.push(new THREE.Vector3(x - width*0.5, y - height*0.5, - 0.5 * (array[x + yMulWidth] - arMin) * ratioDepthTo255 ));
+			geometry.vertices.push(new THREE.Vector3(rx*(x-width*0.5), ry*(y-height*0.5), - 0.5 * (array[x*dx + yMulWidth] - arMin) * ratioDepthTo255 * rz ));
 			uvs.push(new THREE.Vector2(x * invWidth, y * invHeight));
 		}
 	}
@@ -377,7 +393,8 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 		for(var x = 1 ; x < width - 1 ; x++) {
 			if (geomIndex[0][x][y] && (geomIndex[0][x-1][y]==undefined || geomIndex[0][x][y-1]==undefined || geomIndex[0][x+1][y]==undefined || geomIndex[0][x][y+1]==undefined)) {
 				// 横・縦でつながるならそちらを優先
-				var ix, iy;
+				var ix = null;
+				var iy = null;
 				if (geomIndex[0][x-1][y]) {
 					ix = x-1; iy = y;
 				} else if (geomIndex[0][x][y-1]) {
@@ -387,26 +404,29 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 				} else if (geomIndex[0][x][y+1]) {
 					ix = x; iy = y+1;
 				}
-				var i0 = geomIndex[0][x][y];
-				var i1 = geomIndex[1][x][y];
-				var i2 = geomIndex[0][ix][iy];
-				var i3 = geomIndex[1][ix][iy];
-				geometry.faces.push(
-					new THREE.Face3(i0, i1, i2),
-					new THREE.Face3(i1, i3, i2),
-					new THREE.Face3(i0, i2, i1),
-					new THREE.Face3(i1, i2, i3)
-				);
-				geometry.faceVertexUvs[0].push(
-					[uvs[i0], uvs[i1], uvs[i2]],
-					[uvs[i1], uvs[i3], uvs[i2]],
-					[uvs[i0], uvs[i2], uvs[i1]],
-					[uvs[i1], uvs[i2], uvs[i3]]
-				);
+				if (ix != null && iy != null) {
+					var i0 = geomIndex[0][x][y];
+					var i1 = geomIndex[1][x][y];
+					var i2 = geomIndex[0][ix][iy];
+					var i3 = geomIndex[1][ix][iy];
+					geometry.faces.push(
+						new THREE.Face3(i0, i1, i2),
+						new THREE.Face3(i1, i3, i2),
+						new THREE.Face3(i0, i2, i1),
+						new THREE.Face3(i1, i2, i3)
+					);
+					geometry.faceVertexUvs[0].push(
+						[uvs[i0], uvs[i1], uvs[i2]],
+						[uvs[i1], uvs[i3], uvs[i2]],
+						[uvs[i0], uvs[i2], uvs[i1]],
+						[uvs[i1], uvs[i2], uvs[i3]]
+					);
+				}
 			}
 			if (geomIndex[0][x][y] && (geomIndex[0][x-1][y-1]==undefined || geomIndex[0][x+1][y-1]==undefined || geomIndex[0][x-1][y+1]==undefined || geomIndex[0][x+1][y+1]==undefined)) {
 				// 横・縦でつながるならそちらを優先
-				var ix, iy;
+				var ix = null;
+				var iy = null;
 				if (geomIndex[0][x-1][y-1]) {
 					ix = x-1; iy = y-1;
 				} else if (geomIndex[0][x+1][y-1]) {
@@ -416,22 +436,24 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 				} else if (geomIndex[0][x+1][y+1]) {
 					ix = x+1; iy = y+1;
 				}
-				var i0 = geomIndex[0][x][y];
-				var i1 = geomIndex[1][x][y];
-				var i2 = geomIndex[0][ix][iy];
-				var i3 = geomIndex[1][ix][iy];
-				geometry.faces.push(
-					new THREE.Face3(i0, i1, i2),
-					new THREE.Face3(i1, i3, i2),
-					new THREE.Face3(i0, i2, i1),
-					new THREE.Face3(i1, i2, i3)
-				);
-				geometry.faceVertexUvs[0].push(
-					[uvs[i0], uvs[i1], uvs[i2]],
-					[uvs[i1], uvs[i3], uvs[i2]],
-					[uvs[i0], uvs[i2], uvs[i1]],
-					[uvs[i1], uvs[i2], uvs[i3]]
-				);
+				if (ix != null && iy != null) {
+					var i0 = geomIndex[0][x][y];
+					var i1 = geomIndex[1][x][y];
+					var i2 = geomIndex[0][ix][iy];
+					var i3 = geomIndex[1][ix][iy];
+					geometry.faces.push(
+						new THREE.Face3(i0, i1, i2),
+						new THREE.Face3(i1, i3, i2),
+						new THREE.Face3(i0, i2, i1),
+						new THREE.Face3(i1, i2, i3)
+					);
+					geometry.faceVertexUvs[0].push(
+						[uvs[i0], uvs[i1], uvs[i2]],
+						[uvs[i1], uvs[i3], uvs[i2]],
+						[uvs[i0], uvs[i2], uvs[i1]],
+						[uvs[i1], uvs[i2], uvs[i3]]
+					);
+				}
 			}
 
 		}
