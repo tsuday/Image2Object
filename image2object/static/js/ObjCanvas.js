@@ -4,9 +4,11 @@
  *
  * @constructor
  * @param divEle {object} div element to draw
+ * @param [bMouseControlOutside] {boolean} Flag to control object by mouse operations.
+ *     Default value is false.
  */
-var ObjCanvas = function(divEle) {
-	this._divEle = divEle
+var ObjCanvas = function(divEle, bMouseControlOutside) {
+	this._divEle = divEle;
 
 	this._mouseX = 0, this._mouseY = 0;
 	this._windowHalfX = window.innerWidth / 2;
@@ -22,7 +24,7 @@ var ObjCanvas = function(divEle) {
 	this._camera.position.z = this._cameraPosZ;
 
 	// control
-	this._controls = new THREE.OrbitControls(this._camera);
+	this._controls = new THREE.OrbitControls(this._camera, bMouseControlOutside ? undefined : divEle);
 
 	// scene
 	this._scene = new THREE.Scene();
@@ -518,6 +520,10 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	// last from here
 	var directionalLight = new THREE.DirectionalLight( 0x20ff20 );
 	directionalLight.position.set( -1000, 1000, 0 );
+	
+	console.log(directionalLight);
+	
+	_this._directionalLight = directionalLight;
 	_this._scene.add( directionalLight );
 
 
@@ -526,6 +532,20 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	_this._camera.far = 7200;
 	_this._camera.updateProjectionMatrix();
 };
+
+/**
+ * Set color of directional light.
+ *
+ * @param rgb {number} RGB color value to set. (e.g. ffffff for white.)
+ */
+ObjCanvas.prototype.setDirectionalLightColor = function (rgb) {
+	if (!this._directionalLight) {
+		return;
+	}
+	
+	this._directionalLight.color = new THREE.Color(rgb);
+}
+
 
 /*
  * Add contours to objects drawn on canvas(webgl).
@@ -700,8 +720,19 @@ ObjCanvas.prototype.getObjectName = function() {
  */
 ObjCanvas.prototype.clear = function() {
 
+	// remove all children(mesh and lights)
+	var ambient = null
 	while(this._scene.children.length > 0){
+		if (this._scene.children[0].type === "AmbientLight") {
+			ambient = this._scene.children[0];
+		}
 		console.log(this._scene.children[0]);
 		this._scene.remove(this._scene.children[0]);
 	}
+
+	// restore ambient light
+	if (ambient) {
+		this._scene.add(ambient);
+	}
+
 };
