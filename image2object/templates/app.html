@@ -35,6 +35,10 @@
 		<button onclick="convertTo3D()">Convert to 3D</button>
 		<button onclick="predict3D()">Predict 3D Object</button>
 		<button onclick="clearPredictedObject()">Clear Predicted Object</button>
+		<br><br>
+		R : <input name="predictedLightR" id="predictedLightR" type="range" min="1" max="255"><br>
+		G : <input name="predictedLightG" id="predictedLightG" type="range" min="1" max="255"><br>
+		B : <input name="predictedLightB" id="predictedLightB" type="range" min="1" max="255"><br>
 
 		<script>
 			var nWidth = 512;
@@ -175,16 +179,36 @@
 					canvasScene.clear();
 				}
 			};
+			
 
 			// Scene to render 3D object
 			var containerScene = null;
 			var canvasScene = null;
-			function initScene() {
+			var initScene = function () {
 				containerScene = document.getElementById( 'containerScene' );
-				canvasScene = new ObjCanvas(containerScene);
+				canvasScene = new ObjCanvas(containerScene, false);
 				canvasScene.animate();
 			}
 			initScene();
+
+			// configuration on scene
+			var updateLightColor = function() {
+				var r = sliderR.value;
+				var g = sliderG.value;
+				var b = sliderB.value;
+				
+				var rgb = r<<16 + g<<8 + b;
+				canvasScene.setDirectionalLightColor(rgb);
+			};
+			var sliderR = document.getElementById("predictedLightR");
+			sliderR.addEventListener("input", updateLightColor, false);
+
+			var sliderG = document.getElementById("predictedLightG");
+			sliderG.addEventListener("input", updateLightColor, false);
+
+			var sliderB = document.getElementById("predictedLightB");
+			sliderB.addEventListener("input", updateLightColor, false);
+
 
 		</script>
 
