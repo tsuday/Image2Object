@@ -197,7 +197,7 @@
 				var g = sliderG.value;
 				var b = sliderB.value;
 				
-				var rgb = r<<16 + g<<8 + b;
+				var rgb = Number(r<<16) + Number(g<<8) + Number(b);
 				canvasScene.setDirectionalLightColor(rgb);
 			};
 			var sliderR = document.getElementById("predictedLightR");
