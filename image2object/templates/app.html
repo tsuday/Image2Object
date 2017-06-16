@@ -29,7 +29,7 @@
 			<canvas id="drawCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
 			<div class="space" style="display:table-cell;width:64px;"></div>
 			<div id="containerScene" style="display:table-cell;width:512px;height:512px;border:solid 2px #000000"></div>
-			<canvas id="test" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
+			<canvas id="depthCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
 		</div>
 		<button id="clearDrawingBtn">Clear</button>
 		<button onclick="convertTo3D()">Convert to 3D</button>
@@ -139,27 +139,23 @@
 							};
 							img.onerror = function(e) {
 								console.log(e);
-							}
+							};
 							img.src = predictedImage;
 							
-							
-							//*
-							var canvas2 = document.getElementById('test'); 
-							canvas2.height = nHeight;
-							canvas2.width = nWidth;
-							var ctx2 = canvas2.getContext('2d');
-							var img2 = new Image();
-							img2.onload = function() {
-								ctx2.drawImage(img2, 0,0,nWidth,nHeight);
+							var canvasDepth = document.getElementById('depthCanvas'); 
+							canvasDepth.height = nHeight;
+							canvasDepth.width = nWidth;
+							var ctxDepth = canvasDepth.getContext('2d');
+							var imgDepth = new Image();
+							imgDepth.onload = function() {
+								ctxDepth.drawImage(imgDepth, 0,0,nWidth,nHeight);
 							};
-							img2.onerror = function(e) {
+							imgDepth.onerror = function(e) {
 								console.log("depth image draw error");
 								console.log(e);
 							}
-							img2.src = predictedImage;
-							//*/
+							imgDepth.src = predictedImage;
 
-							
 						} else {
 							console.log("Bad Response : " + request.statusText);
 						}
