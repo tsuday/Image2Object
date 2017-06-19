@@ -28,7 +28,7 @@ var ObjCanvas = function(divEle, bMouseControlOutside) {
 
 	// scene
 	this._scene = new THREE.Scene();
-	var ambient = new THREE.AmbientLight( 0x40f040 );
+	var ambient = new THREE.AmbientLight( 0x606060 );
 	this._scene.add( ambient );
 
 	// Manager for loading process
@@ -518,7 +518,7 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	_this._scene.add( mesh );
 
 	// last from here
-	var directionalLight = new THREE.DirectionalLight( 0x20ff20 );
+	var directionalLight = new THREE.DirectionalLight( 0x808080 );
 	directionalLight.position.set( -1000, 1000, 0 );
 	
 	console.log(directionalLight);
