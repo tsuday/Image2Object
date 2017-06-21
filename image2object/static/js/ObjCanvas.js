@@ -28,8 +28,9 @@ var ObjCanvas = function(divEle, bMouseControlOutside) {
 
 	// scene
 	this._scene = new THREE.Scene();
-	var ambient = new THREE.AmbientLight( 0x606060 );
-	this._scene.add( ambient );
+	var ambientLight = new THREE.AmbientLight( 0x606060 );
+	this._ambientLight = ambientLight;
+	this._scene.add( ambientLight );
 
 	// Manager for loading process
 	var manager = new THREE.LoadingManager();
@@ -544,8 +545,20 @@ ObjCanvas.prototype.setDirectionalLightColor = function (rgb) {
 	}
 	
 	this._directionalLight.color = new THREE.Color(rgb);
-}
+};
 
+/**
+ * Set color of ambient light.
+ *
+ * @param rgb {number} RGB color value to set. (e.g. ffffff for white.)
+ */
+ObjCanvas.prototype.setAmbientLightColor = function (rgb) {
+	if (!this._ambientLight) {
+		return;
+	}
+	
+	this._ambientLight.color = new THREE.Color(rgb);
+};
 
 /*
  * Add contours to objects drawn on canvas(webgl).
