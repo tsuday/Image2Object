@@ -39,6 +39,10 @@
 		R : <input name="predictedLightR" id="predictedLightR" type="range" min="1" max="255"><br>
 		G : <input name="predictedLightG" id="predictedLightG" type="range" min="1" max="255"><br>
 		B : <input name="predictedLightB" id="predictedLightB" type="range" min="1" max="255"><br>
+		<br><br>
+		R : <input name="predictedAmbientR" id="predictedAmbientR" type="range" min="1" max="255"><br>
+		G : <input name="predictedAmbientG" id="predictedAmbientG" type="range" min="1" max="255"><br>
+		B : <input name="predictedAmbientB" id="predictedAmbientB" type="range" min="1" max="255"><br>
 
 		<script>
 			var nWidth = 512;
@@ -188,6 +192,8 @@
 			initScene();
 
 			// configuration on scene
+			
+			// directional light
 			var updateLightColor = function() {
 				var r = sliderR.value;
 				var g = sliderG.value;
@@ -204,6 +210,24 @@
 
 			var sliderB = document.getElementById("predictedLightB");
 			sliderB.addEventListener("input", updateLightColor, false);
+
+			// ambient
+			var updateAmbientColor = function() {
+				var r = sliderAmbientR.value;
+				var g = sliderAmbientG.value;
+				var b = sliderAmbientB.value;
+				
+				var rgb = Number(r<<16) + Number(g<<8) + Number(b);
+				canvasScene.setAmbientLightColor(rgb);
+			};
+			var sliderAmbientR = document.getElementById("predictedAmbientR");
+			sliderAmbientR.addEventListener("input", updateAmbientColor, false);
+
+			var sliderAmbientG = document.getElementById("predictedAmbientG");
+			sliderAmbientG.addEventListener("input", updateAmbientColor, false);
+
+			var sliderAmbientB = document.getElementById("predictedAmbientB");
+			sliderAmbientB.addEventListener("input", updateAmbientColor, false);
 
 
 		</script>
