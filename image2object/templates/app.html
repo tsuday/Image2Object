@@ -25,24 +25,42 @@
 		<script src="static/js/ObjCanvas.js"></script>
 		<script src="static/js/DrawCanvas.js"></script>
 
-		<div id="c" style="display:table">
-			<canvas id="drawCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
-			<div class="space" style="display:table-cell;width:64px;"></div>
-			<div id="containerScene" style="display:table-cell;width:512px;height:512px;border:solid 2px #000000"></div>
-			<canvas id="depthCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
-		</div>
-		<button id="clearDrawingBtn">Clear</button>
-		<button onclick="convertTo3D()">Convert to 3D</button>
-		<button onclick="predict3D()">Predict 3D Object</button>
-		<button onclick="clearPredictedObject()">Clear Predicted Object</button>
-		<br><br>
-		R : <input name="predictedLightR" id="predictedLightR" type="range" min="1" max="255"><br>
-		G : <input name="predictedLightG" id="predictedLightG" type="range" min="1" max="255"><br>
-		B : <input name="predictedLightB" id="predictedLightB" type="range" min="1" max="255"><br>
-		<br><br>
-		R : <input name="predictedAmbientR" id="predictedAmbientR" type="range" min="1" max="255"><br>
-		G : <input name="predictedAmbientG" id="predictedAmbientG" type="range" min="1" max="255"><br>
-		B : <input name="predictedAmbientB" id="predictedAmbientB" type="range" min="1" max="255"><br>
+		<table>
+			<tr>
+				<td>
+					<canvas id="drawCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
+				</td>
+				<td>
+					<div class="space" style="display:table-cell;width:64px;"></div>
+				</td>
+				<td>
+					<div id="c" style="display:table">
+						<div id="containerScene" style="display:table-cell;width:512px;height:512px;border:solid 2px #000000"></div>
+						<canvas id="depthCanvas" width="512" height="512" style="width:512px;height:512px;border:solid 2px #000000"></canvas>
+					</div>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<button id="clearDrawingBtn">Clear</button>
+					<button onclick="convertTo3D()">Convert to 3D</button>
+					<button onclick="predict3D()">Predict 3D Object</button>
+				</td>
+				<td>
+				</td>
+				<td>
+					<button onclick="clearPredictedObject()">Clear Predicted Object</button>
+					<br><br>
+					R : <input name="predictedLightR" id="predictedLightR" type="range" min="1" max="255"><br>
+					G : <input name="predictedLightG" id="predictedLightG" type="range" min="1" max="255"><br>
+					B : <input name="predictedLightB" id="predictedLightB" type="range" min="1" max="255"><br>
+					<br><br>
+					R : <input name="predictedAmbientR" id="predictedAmbientR" type="range" min="1" max="255"><br>
+					G : <input name="predictedAmbientG" id="predictedAmbientG" type="range" min="1" max="255"><br>
+					B : <input name="predictedAmbientB" id="predictedAmbientB" type="range" min="1" max="255"><br>
+				</td>
+			</tr>
+		</table>
 
 		<script>
 			var nWidth = 512;
