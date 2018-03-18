@@ -11,8 +11,12 @@ random.seed(a=123456789)
 np.random.seed(123456789)
 tf.set_random_seed(123456789)
 
-## Learning Model
-class AutoEncoder:
+
+##### Generator #####
+
+## Generator class of GAN to create image from input image.
+## Generator is basically implemented with AutoEncoder model.
+class Generator:
     # input image size
     nWidth = 512
     nHeight = 512
@@ -31,13 +35,13 @@ class AutoEncoder:
     def L2(output, target):
         return tf.reduce_sum(tf.square(target-output))
     
-    def __init__(self, training_csv_file_name, **options):
+    def __init__(self, training_csv_file_name, options):
         # options by argument
         self.batch_size = options.get('batch_size', 1)
         self.is_data_augmentation = options.get('is_data_augmentation', True)
         # Option to skip conecctions between corresponding layers of encoder and decoder as in U-net
         self.is_skip_connection = options.get('is_skip_connection', True)
-        self.loss_function = options.get('loss_function', AutoEncoder.L1)
+        self.loss_function = options.get('loss_function', Generator.L1)
         
         isDebug = True
         if isDebug:
@@ -45,11 +49,6 @@ class AutoEncoder:
             print("data_augmentation : {0}".format(self.is_data_augmentation))
             print("skip_connection : {0}".format(self.is_skip_connection))
             print("loss_function : {0}".format(self.loss_function))
-        
-        #with tf.Graph().as_default():
-        #    self.prepare_model()
-        #    self.prepare_session()
-        #    self.prepare_batch(training_csv_file_name)
 
         self.prepare_model()
         self.prepare_session()
@@ -57,11 +56,11 @@ class AutoEncoder:
 
     def prepare_model(self):
         with tf.name_scope("input"):
-            x = tf.placeholder(tf.float32, [None, AutoEncoder.nPixels])
-            x_image = tf.cast(tf.reshape(x, [self.batch_size, AutoEncoder.nWidth, AutoEncoder.nHeight, 1]), tf.float32)
+            x = tf.placeholder(tf.float32, [None, Generator.nPixels])
+            x_image = tf.cast(tf.reshape(x, [self.batch_size, Generator.nWidth, Generator.nHeight, 1]), tf.float32)
 
-            t = tf.placeholder(tf.float32, [None, AutoEncoder.nPixels])
-            t_image = tf.reshape(t, [self.batch_size, AutoEncoder.nWidth, AutoEncoder.nHeight, 1])
+            t = tf.placeholder(tf.float32, [None, Generator.nPixels])
+            t_image = tf.reshape(t, [self.batch_size, Generator.nWidth, Generator.nHeight, 1])
 
             # keep probabilities for dropout layer
             keep_prob = tf.placeholder(tf.float32)
@@ -103,7 +102,7 @@ class AutoEncoder:
             
             self.x_image = x_image
 
-        # Encoding function for AutoEncoder
+        # Encoding function for Generator(AutoEncoder)
         def encode(batch_input, out_channels, stride, filter_size):
             with tf.variable_scope("encode"):
                 in_channels = batch_input.get_shape()[3]
@@ -142,7 +141,7 @@ class AutoEncoder:
                 normalized = tf.nn.batch_normalization(input, mean, variance, offset, scale, variance_epsilon=variance_epsilon)
                 return normalized
 
-        # Decoding function for AutoEncoder
+        # Decoding function for Generator(AutoEncoder)
         def decode(batch_input, out_channels, filter_size):
             with tf.variable_scope("decode"):
                 batch, in_height, in_width, in_channels = [int(d) for d in batch_input.get_shape()]
@@ -152,7 +151,7 @@ class AutoEncoder:
                 conved = tf.nn.conv2d_transpose(batch_input, filter, [batch, in_height * 2, in_width * 2, out_channels], [1, 2, 2, 1], padding="SAME")
                 return conved
 
-        # List to contain each layer of AutoEncoder
+        # List to contain each layer of Generator(AutoEncoder)
         layers = []
 
         # 3 if used for color image
@@ -286,7 +285,147 @@ class AutoEncoder:
         return example_batch, label_batch
 
     def prepare_batch(self, training_csv_file_name):
-        image_batch, depth_batch = self.input_pipeline([training_csv_file_name], self.batch_size, AutoEncoder.read_threads)
+        image_batch, depth_batch = self.input_pipeline([training_csv_file_name], self.batch_size, Generator.read_threads)
         
         self.image_batch = image_batch
         self.depth_batch = depth_batch
+
+        
+##### Discriminator #####
+
+# Discriminator class of GAN to determine if input image is real image or fake image created by Generator class.
+class Discriminator:
+    
+    # input_image, generator_output and target_image have 4 dimensions
+    # (batch_size, image_width, image_height, color_channel)
+    # input_image : input for GAN (also input for generator)
+    # generator_output : generated image by generator
+    # target_image : expected image, which is input for GAN
+    def __init__(self, input_image, generator_output, target_image, options):
+        self.input_image = input_image
+        self.generator_output = generator_output 
+        self.target_image = target_image
+        
+        self.layer_generator_output = self.prepare_model(generator_output, "discriminator_for_generator_output")
+        self.layer_target_image = self.prepare_model(target_image, "discriminator_for_target_image")
+        self.loss = self.calc_loss()
+
+    # discriminate_target is generator_output or target_image
+    # this method returns last layer 
+    def prepare_model(self, discriminate_target, scope_name):
+        with tf.variable_scope(scope_name):
+            input = tf.concat([self.input_image, discriminate_target], axis=3);
+            print(input)
+
+            # Leaky ReLU
+            def lrelu(x, a):
+                with tf.name_scope("LeakyReLU"):
+                    x = tf.identity(x)
+                    # leak[a*x/2 - a*abs(x)/2] + linear[x/2 + abs(x)/2]
+                    return (0.5 * (1 + a)) * x + (0.5 * (1 - a)) * tf.abs(x)
+
+            # Batch Normalization
+            def batchnorm(input):
+                with tf.variable_scope("BatchNormalization"):
+                    input = tf.identity(input)
+
+                    channels = input.get_shape()[3]
+                    offset = tf.get_variable("offset", [channels], dtype=tf.float32, initializer=tf.zeros_initializer)
+                    scale = tf.get_variable("scale", [channels], dtype=tf.float32, initializer=tf.random_normal_initializer(1.0, 0.02))
+                    mean, variance = tf.nn.moments(input, axes=[0, 1, 2], keep_dims=False)
+                    variance_epsilon = 1e-5
+                    normalized = tf.nn.batch_normalization(input, mean, variance, offset, scale, variance_epsilon=variance_epsilon)
+                    return normalized
+
+            # convolutiobn for discriminator
+            def convolve(input, filters, stride, krnl_size):
+                # Add constant 0 padding to image width and height dimension
+                with_padding = tf.pad(input, [[0, 0], [1, 1], [1, 1], [0, 0]], mode="CONSTANT")
+
+                conved = tf.layers.conv2d(with_padding, filters, kernel_size=krnl_size, strides=(stride, stride), padding="valid", kernel_initializer=tf.random_normal_initializer(0, 0.02));
+                return conved
+           
+            num_channels = 1
+            out_channels_base = 32
+            # list consists of elements(out_channels, stride)
+            layer_spec = [
+                (64,   2), # disc_layer_1: [batch_size, 512, 512, 1]  => [batch_size, 256, 256, 64]
+                (128,  2), # disc_layer_2: [batch_size, 256, 256, 64] => [batch_size, 128, 128, 128]
+                (256,  2), # disc_layer_3: [batch_size, 128, 128, 128] => [batch_size, 64, 64, 256]
+                (512,  2), # disc_layer_4: [batch_size, 64, 64, 256] => [batch_size, 32, 32, 512]
+                (1024, 1), # disc_layer_5: [batch_size, 32, 32, 512] => [batch_size, 31, 31, 1024]
+            ]
+
+            # discriminator layers
+            layers = []
+            
+            kernel_size = 4
+            for layer_index, (out_channels, stride) in enumerate(layer_spec):
+                with tf.variable_scope("discriminator_layer_%d" % (len(layers) + 1)):
+                    
+                    if layer_index == 0:
+                        convolved = convolve(input, out_channels, stride, kernel_size)
+                        activated = lrelu(convolved, 0.2)
+                    else:
+                        convolved = convolve(layers[-1], out_channels, stride, kernel_size)
+                        normalized = batchnorm(convolved)
+                        activated = lrelu(convolved, 0.2)
+
+                    layers.append(activated)
+                    print(activated)
+            
+            # disc_layer_last: [batch_size, 31, 31, 1024] => [batch_size, 30, 30, 1]
+            with tf.variable_scope("discriminator_layer_%d" % (len(layers) + 1)):
+                # 2nd and 3rd arguments are number of output channel and stride for convolution layer
+                convolved = convolve(layers[-1], 1, 2, kernel_size)
+                activated = tf.sigmoid(convolved)
+                
+            layers.append(activated)
+
+            return layers[-1]
+    
+    def calc_loss(self):
+        eps = 1e-7
+        return tf.reduce_mean( -tf.log(self.layer_target_image + eps) + tf.log(1 - self.layer_generator_output + eps) )
+
+    
+##### GAN #####
+
+# GAN(Generative Adversarial Network) class
+# This class provides an interface between GAN user (training or prediction) and internal network (generator and discriminator).
+class GAN:
+    
+    def __init__(self, training_csv_file_name, **options):
+        ## options by argument
+        self.batch_size = options.get('batch_size', 1)
+        self.is_data_augmentation = options.get('is_data_augmentation', True)
+        # Option for generator to skip conecctions between corresponding layers of encoder and decoder as in U-net
+        self.is_skip_connection = options.get('is_skip_connection', True)
+        self.loss_function = options.get('loss_function', Generator.L1)
+        
+        isDebug = True
+        if isDebug:
+            print("batch_size : {0}".format(self.batch_size))
+            print("data_augmentation : {0}".format(self.is_data_augmentation))
+            print("skip_connection : {0}".format(self.is_skip_connection))
+            print("loss_function : {0}".format(self.loss_function))
+        
+        with tf.Graph().as_default(): # both of generator and discriminator belongs to the same graph
+            print(training_csv_file_name)
+            print(options)
+            generator = Generator(training_csv_file_name, options)
+            discriminator = Discriminator(generator.x_image, generator.output, generator.t_compare, options)
+
+            def generator_loss_function(output, target):
+                eps = 1e-7
+                loss_L1 = tf.reduce_mean(tf.abs(target-output))
+                loss_discriminator = tf.reduce_mean(-tf.log(discriminator.layer_generator_output + eps))
+
+                ratio_discriminator = 0.01
+                return (1.00 - ratio_discriminator) * loss_L1 + ratio_discriminator * loss_discriminator
+
+            generator.loss_function = generator_loss_function
+            generator.sess.run(tf.global_variables_initializer())
+            
+            self.generator = generator
+            self.discriminator = discriminator

@@ -20,8 +20,9 @@ import base64
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/libraries")
-from AutoEncoder import AutoEncoder
-from Discriminator import Discriminator
+from GAN import GAN
+from GAN import Generator
+from GAN import Discriminator
 
 
 # PIL
@@ -34,19 +35,10 @@ imageUrlPattern = re.compile('drawnImage=data:image/png;base64,(.*)$')
 
 # Initialize GAN
 print("Start initializing GAN network...")
-generator = AutoEncoder("", batch_size=1, is_data_augmentation=False)
-discriminator = Discriminator(generator.x_image, generator.output, generator.t_compare)
 
-def generator_loss_function(output, target):
-    eps = 1e-7
-    loss_L1 = tf.reduce_mean(tf.abs(target-output))
-    loss_discriminator = tf.reduce_mean(-tf.log(discriminator.layer_generator_output + eps))
-
-    ratio_discriminator = 0.01
-    return (1.00 - ratio_discriminator) * loss_L1 + ratio_discriminator * loss_discriminator
-
-generator.loss_function = generator_loss_function
-
+gan = GAN('dataList.csv', batch_size=1, is_data_augmentation=False)
+generator = gan.generator
+discriminator = gan.discriminator
 
 generator.saver.restore(generator.sess, os.path.dirname(__file__) + "/tensorflow_session/s-31100")
 #autoEncoder.saver.restore(autoEncoder.sess, os.path.dirname(__file__) + "/tensorflow_session/s-80600")
@@ -88,7 +80,7 @@ def predict(request):
     drawnImageAlphaArray = 255 - drawnImageArray[:, :, 3]
 
     # reshape to (1, 512*512)
-    drawnImageInput = drawnImageAlphaArray.reshape((1, AutoEncoder.nPixels))
+    drawnImageInput = drawnImageAlphaArray.reshape((1, Generator.nPixels))
 
     # out shape : (1, 512, 512, 1)
     out, x_input = generator.sess.run([generator.output, generator.x_image], feed_dict={generator.x:drawnImageInput, generator.keep_prob:1.0})
