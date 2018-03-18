@@ -139,58 +139,62 @@
 				var request = new XMLHttpRequest();
 				request.open("post", "/predict", true);
 				request.onload = function (event) {
-					if (request.readyState === 4) {
-						if (request.status === 200) {
-							console.log(request.statusText); // status is "OK"
-
-							var res = request.response;
-							var jsonRes = JSON.parse(res);
-							var predictedImage = jsonRes.predictedImage;
-							
-							
-							var canvas = document.createElement('canvas'); 
-							canvas.height = nWidth;
-							canvas.width = nHeight;
-							var ctx = canvas.getContext('2d');
-							var img = new Image();
-							img.onload = function() {
-								ctx.drawImage(img, 0, 0, nWidth, nHeight);
-								var meshData = new Uint8Array(nWidth*nHeight);
-								for (var x=0;x<nWidth;x++) {
-									for (var y=0;y<nHeight;y++) {
-										var pixel = ctx.getImageData(x, y, 1, 1);
-										var pData = pixel.data;
-										//var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
-										var d = pData[3];
-										meshData[(nWidth-1-x)+nWidth*y] = d;
-									}
-								}
-								canvasScene.loadUint8Array(meshData);
-								canvasScene.animate();
-							};
-							img.onerror = function(e) {
-								console.log(e);
-							};
-							img.src = predictedImage;
-							
-							var canvasDepth = document.getElementById('depthCanvas'); 
-							canvasDepth.height = nHeight;
-							canvasDepth.width = nWidth;
-							var ctxDepth = canvasDepth.getContext('2d');
-							var imgDepth = new Image();
-							imgDepth.onload = function() {
-								ctxDepth.drawImage(imgDepth, 0,0,nWidth,nHeight);
-							};
-							imgDepth.onerror = function(e) {
-								console.log("depth image draw error");
-								console.log(e);
-							}
-							imgDepth.src = predictedImage;
-
-						} else {
-							console.log("Bad Response : " + request.statusText);
-						}
+					if (request.readyState != 4) {
+						return;
 					}
+					if (request.status != 200) {
+						console.log("Bad Response : " + request.statusText);
+						return;
+					}
+
+					console.log(request.statusText); // status is "OK"
+					
+					// receive predicted image from HTTP response
+					var res = request.response;
+					var jsonRes = JSON.parse(res);
+					var predictedImage = jsonRes.predictedImage;
+					
+					// load 3D predicted object shape on canvas
+					var canvas = document.createElement('canvas'); 
+					canvas.height = nWidth;
+					canvas.width = nHeight;
+					var ctx = canvas.getContext('2d');
+					var img = new Image();
+					img.onload = function() {
+						ctx.drawImage(img, 0, 0, nWidth, nHeight);
+						var meshData = new Uint8Array(nWidth*nHeight);
+						for (var x=0;x<nWidth;x++) {
+							for (var y=0;y<nHeight;y++) {
+								var pixel = ctx.getImageData(x, y, 1, 1);
+								var pData = pixel.data;
+								//var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
+								var d = pData[3];
+								meshData[(nWidth-1-x)+nWidth*y] = d;
+							}
+						}
+						canvasScene.loadUint8Array(meshData);
+						canvasScene.animate();
+					};
+					img.onerror = function(e) {
+						console.log(e);
+					};
+					img.src = predictedImage;
+					
+					// load 2D predicted depth map on canvas
+					var canvasDepth = document.getElementById('depthCanvas'); 
+					canvasDepth.height = nHeight;
+					canvasDepth.width = nWidth;
+					var ctxDepth = canvasDepth.getContext('2d');
+					var imgDepth = new Image();
+					imgDepth.onload = function() {
+						ctxDepth.drawImage(imgDepth, 0,0,nWidth,nHeight);
+					};
+					imgDepth.onerror = function(e) {
+						console.log("depth image draw error");
+						console.log(e);
+					}
+					imgDepth.src = predictedImage;
+
 				};
 				request.onerror = function (event) {
 				  console.log(event.type); // => "error"
@@ -215,11 +219,10 @@
 				containerScene = document.getElementById( 'containerScene' );
 				canvasScene = new ObjCanvas(containerScene, false);
 				canvasScene.animate();
-			}
+			};
 			initScene();
 
-			// configuration on scene
-			
+			/*  configuration on scene  */
 			// directional light
 			var updateLightColor = function() {
 				var r = sliderR.value;
@@ -255,7 +258,6 @@
 
 			var sliderAmbientB = document.getElementById("predictedAmbientB");
 			sliderAmbientB.addEventListener("input", updateAmbientColor, false);
-
 
 		</script>
 
