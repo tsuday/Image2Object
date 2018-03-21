@@ -153,7 +153,7 @@
 					var res = request.response;
 					var jsonRes = JSON.parse(res);
 					var predictedImage = jsonRes.predictedImage;
-					
+
 					// load 3D predicted object shape on canvas
 					var canvas = document.createElement('canvas'); 
 					canvas.height = nWidth;
@@ -162,22 +162,25 @@
 					var img = new Image();
 					img.onload = function() {
 						ctx.drawImage(img, 0, 0, nWidth, nHeight);
+
 						var meshData = new Uint8Array(nWidth*nHeight);
+						var pixelData = ctx.getImageData(0, 0, nWidth, nHeight).data;
 						for (var x=0;x<nWidth;x++) {
 							for (var y=0;y<nHeight;y++) {
-								var pixel = ctx.getImageData(x, y, 1, 1);
-								var pData = pixel.data;
-								//var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
-								var d = pData[3];
+								var pos = (y*nWidth + x) * 4; // 4 is RGBA
+								//var d = 255 - (pixelData[pos] + pixelData[pos+1] + pixelData[post+2]) / 3;
+								var d = pixelData[pos+3];
 								meshData[(nWidth-1-x)+nWidth*y] = d;
 							}
 						}
+
 						canvasScene.loadUint8Array(meshData);
 						canvasScene.animate();
 					};
 					img.onerror = function(e) {
 						console.log(e);
 					};
+
 					img.src = predictedImage;
 					
 					// load 2D predicted depth map on canvas
@@ -202,6 +205,7 @@
 				
 				request.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
 				var param = "drawnImage="+dataURL;
+				
 				request.send(param);
 			};
 			
