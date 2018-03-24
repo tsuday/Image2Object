@@ -51,6 +51,8 @@
 			</tr>
 			<tr>
 				<td>
+					<button id="undoBtn">Undo</button>
+					<button id="redoBtn">Redo</button>
 					<button id="clearDrawingBtn">Clear</button>
 					<br>
 					<button onclick="convertTo3D()">Convert to 3D</button>
@@ -81,9 +83,20 @@
 			var drawCanvasEle = document.getElementById("drawCanvas");
 			var drawCanvas = new DrawCanvas(drawCanvasEle);
 			
+			// UIs for 2D drawing
 			var clearDrawingBtn = document.getElementById("clearDrawingBtn");
 			clearDrawingBtn.onclick = function() {
 				drawCanvas.clear();
+			};
+
+			var undoBtn = document.getElementById("undoBtn");
+			undoBtn.onclick = function() {
+				drawCanvas.undo();
+			};
+
+			var redoBtn = document.getElementById("redoBtn");
+			redoBtn.onclick = function() {
+				drawCanvas.redo();
 			};
 
 			function convertTo3D() {
