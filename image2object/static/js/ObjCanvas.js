@@ -528,10 +528,37 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	_this._scene.add( directionalLight );
 
 
-	_this._camera.position.z = 1000;
+	_this._camera.position.z = 2000;
 	_this._camera.near = 0.1;
-	_this._camera.far = 7200;
+	_this._camera.far = 8000;
 	_this._camera.updateProjectionMatrix();
+};
+
+/**
+ * Returns z coordinate of camera.<br>
+ *
+ * @return {Number} z coordinate of camera
+ * @memberOf ObjCanvas
+ */
+ObjCanvas.prototype.getCameraPositionZ = function () {
+	return this._camera.position.z;
+};
+
+/**
+ * Set z coordinate of camera.<br>
+ *
+ * @param z {Number} z coordinate of camera
+ * @param [isKeepScene] {boolean} Set z coordinate without updating scene.
+ *     Default value is false.
+ * @memberOf ObjCanvas
+ */
+ObjCanvas.prototype.setCameraPositionZ = function (z, isKeepScene) {
+	var isKeepScene = (isKeepScene === undefined || isKeepScene === null) ? false : isKeepScene;
+	
+	this._camera.position.z = z;
+	if (isKeepScene) {
+		this._camera.updateProjectionMatrix();
+	}
 };
 
 /**
