@@ -62,14 +62,21 @@
 				<td>
 					<button onclick="clearPredictedObject()">Clear Predicted Object</button>
 					<br><br>
-					R : <input name="predictedLightR" id="predictedLightR" type="range" min="1" max="255"><br>
-					G : <input name="predictedLightG" id="predictedLightG" type="range" min="1" max="255"><br>
-					B : <input name="predictedLightB" id="predictedLightB" type="range" min="1" max="255"><br>
-					<br>
-					R : <input name="predictedAmbientR" id="predictedAmbientR" type="range" min="1" max="255"><br>
-					G : <input name="predictedAmbientG" id="predictedAmbientG" type="range" min="1" max="255"><br>
-					B : <input name="predictedAmbientB" id="predictedAmbientB" type="range" min="1" max="255"><br>
-					<br>
+					<div id="lightArea" style="display:table">
+						<div id="directLight" style="display:table-cell">
+							Directional Light<br>
+							R : <input name="predictedLightR" id="predictedLightR" type="range" min="1" max="255"><br>
+							G : <input name="predictedLightG" id="predictedLightG" type="range" min="1" max="255"><br>
+							B : <input name="predictedLightB" id="predictedLightB" type="range" min="1" max="255"><br>
+						</div>
+						<div id="ambientLight" style="display:table-cell">
+							Ambient Light<br>
+							R : <input name="predictedAmbientR" id="predictedAmbientR" type="range" min="1" max="255"><br>
+							G : <input name="predictedAmbientG" id="predictedAmbientG" type="range" min="1" max="255"><br>
+							B : <input name="predictedAmbientB" id="predictedAmbientB" type="range" min="1" max="255"><br>
+						</div>
+						<br>
+					</div>
 					Camera : forward <input name="cameraPositionZ" id="cameraPositionZ" type="range" value="2000" min="1000" max="4000"> backward <br>
 				</td>
 			</tr>
@@ -196,7 +203,7 @@
 					canvasScene.clear();
 				}
 			};
-			
+
 
 			// Scene to render 3D object
 			var containerScene = null;
@@ -251,7 +258,6 @@
 			};
 			var cameraPositionZ = document.getElementById("cameraPositionZ");
 			cameraPositionZ.addEventListener("input", updateCameraPosition, false);
-
 		</script>
 
 	</body>
