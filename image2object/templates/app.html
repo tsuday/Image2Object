@@ -55,7 +55,6 @@
 					<button id="redoBtn">Redo</button>
 					<button id="clearDrawingBtn">Clear</button>
 					<br>
-					<button onclick="convertTo3D()">Convert to 3D</button>
 					<button onclick="predict3D()">Predict 3D Object</button>
 				</td>
 				<td>
@@ -99,39 +98,6 @@
 				drawCanvas.redo();
 			};
 
-			function convertTo3D() {
-				var imageData = drawContext.getImageData(0, 0, 512, 512);
-				var depthData = drawContext.getImageData(0, 0, nWidth, nHeight);
-
-				//var depth_path = "static/tmp/Sofa.png";
-				var depth_path = "static/tmp/Cylinder.png";
-
-				var canvas = document.createElement('canvas'); 
-				canvas.height = nHeight;
-				canvas.width = nWidth;
-				var ctx = canvas.getContext('2d');
-				var img = new Image();
-				img.onload = function() {
-					ctx.drawImage(img, 0, 0, nWidth, nHeight);
-					var meshData = new Uint8Array(nWidth*nHeight);
-					for (var x=0;x<nWidth;x++) {
-						for (var y=0;y<nHeight;y++) {
-							var pixel = ctx.getImageData(x, y, 1, 1);
-							var pData = pixel.data;
-							var d = 255 - (pData[0] + pData[1] + pData[2]) / 3;
-							meshData[x+nWidth*y] = d;
-						}
-					}
-
-					//canvasScene.loadObjFile('data/ROUND_SOFA.obj', {});
-					canvasScene.loadUint8Array(meshData);
-					canvasScene.animate();
-					
-					console.log("load end");
-				};
-				img.src = depth_path;
-			}
-			
 			// CSRF by django
 			function getCookie(name) {
 				var cookieValue = null;
