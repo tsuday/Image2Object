@@ -4,12 +4,30 @@
  *
  * @constructor
  * @param canvasEle {object} canvas element to draw
+ * @param [undoStackSize] {number} Size of stack used for undo function.
+ *     Negative value indicates that stack size is theoretically inifinite,
+ *     and default value is -1. When stack size exceeds this value,
+ *     oldest data in the stack is abandoned. Note that each elements in stack
+ *     holds copied whole canvas data, so be careful about data size on memory.
  */
-var DrawCanvas = function(canvasEle) {
+var DrawCanvas = function(canvasEle, undoStackSize) {
+	var _this = this;
 	this._canvasEle = canvasEle;
+
+	if (undoStackSize === undefined || undoStackSize === null) {
+		undoStackSize = -1;
+	}
+	this._undoStackSize = undoStackSize;
+	this._undoStack = [];
+	// index for undo stack used for next undo call
+	this._undoPointer = 0;
 
 	var drawContext = canvasEle.getContext("2d");
 	this._drawContext = drawContext;
+
+	// store initial canvas for undo function
+	var storedImageData = this._drawContext.getImageData(0, 0, this._canvasEle.width, this._canvasEle.height);
+	this._undoStack.push(storedImageData);
 
 	// drawing style
 	drawContext.lineCap = "round";
@@ -19,11 +37,11 @@ var DrawCanvas = function(canvasEle) {
 
 	var mouseX = null;
 	var mouseY = null;
+	
+	this._isMouseDown = false;
 
 	// On move of mouse pointer
 	var onMove = function(e) {
-	console.log("onMove");
-	
 		if (e.buttons === 1 || e.which === 1) {
 			var rect = e.target.getBoundingClientRect();
 			var X = ~~(e.clientX - rect.left);
@@ -55,6 +73,8 @@ var DrawCanvas = function(canvasEle) {
 			return;
 		}
 		
+		this._isMouseDown = true;
+
 		var rect = e.target.getBoundingClientRect();
 		var X = ~~(e.clientX - rect.left);
 		var Y = ~~(e.clientY - rect.top);
@@ -65,6 +85,20 @@ var DrawCanvas = function(canvasEle) {
 	var drawEnd = function() {
 		mouseX = null;
 		mouseY = null;
+		
+		if (this._isMouseDown) {
+			// delete no longer used undo data when user draws after calling undo
+			while (_this._undoStack.length > _this._undoPointer + 2) {
+				_this._undoStack.pop();
+			}
+		
+			// store data for undo function
+			var storedImageData = _this._drawContext.getImageData(0, 0, _this._canvasEle.width, _this._canvasEle.height);
+			_this._undoStack.push(storedImageData);
+			_this._undoPointer++;
+		}
+
+		this._isMouseDown = false;
 	};
 	this._canvasEle.addEventListener('mouseup', drawEnd, false);
 	this._canvasEle.addEventListener('mouseout', drawEnd, false);
@@ -94,6 +128,32 @@ DrawCanvas.prototype.setPenSize = function (size) {
 DrawCanvas.prototype.setPenColor = function (r, g, b) {
 	this._drawContext.strokeStyle = 'rgb(' + r + ', ' + g + ', ' +  b + ')';
 	this._drawContext.fillStyle =  'rgb(' + r + ', ' + g + ', ' +  b + ')';
+};
+
+/**
+ * Undo the stroke by user.
+ *
+ * @memberOf DrawCanvas
+ */
+DrawCanvas.prototype.undo = function () {
+	if (this._undoPointer < 1) {
+		return;
+	}
+	this._drawContext.putImageData(this._undoStack[this._undoPointer - 1], 0, 0);
+	if (this._undoPointer >= 1) this._undoPointer--;
+};
+
+/**
+ * Redo the stroke by user.
+ *
+ * @memberOf DrawCanvas
+ */
+DrawCanvas.prototype.redo = function () {
+	if (this._undoPointer+1 >= this._undoStack.length) {
+		return;
+	}
+	this._drawContext.putImageData(this._undoStack[this._undoPointer + 1], 0, 0);
+	if (this._undoPointer < this._undoStack.length) this._undoPointer++;
 };
 
 /**
