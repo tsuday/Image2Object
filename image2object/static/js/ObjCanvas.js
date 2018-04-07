@@ -227,7 +227,33 @@ ObjCanvas.prototype.loadObjFile = function(filePath, options) {
 };
 
 /**
- * Load Uint8Array as an Object.<br>
+ * Set ratio of number of clipped pixels to that of pixels whose values are positive at loadUint8Array.<br>
+ * <br>
+ * Argument array of loadUint8Array will contain unexpected small values,
+ * that will cause artifact in result 3D mesh data.
+ * To avoid this, loadUint8Array clips small values in array.
+ * Ratio value set by this method is used to determine threshold of clipped pixel value.
+ *
+ * @param ratio {number} Ratio to pixel
+ */
+ObjCanvas.prototype.setClipRatio = function (ratio) {
+	this._clipRatio = ratio;
+};
+
+/**
+ * Ratio of number of clipped pixels to that of pixels whose values are positive at loadUint8Array.<br>
+ * @private
+ */
+ObjCanvas.prototype._clipRatio = 0.1;
+
+/*
+ * Three.js Mesh data created in loadUint8Array method.
+ * @private
+ */
+ObjCanvas.prototype._loadUint8ArrayMesh = null;
+
+/**
+ * Load Uint8Array as 3D-Object.<br>
  *
  * @param array {Uint8Array} Array obtained from depth map image.
  *     Size of the array should be width * height of div element
@@ -239,10 +265,11 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	this._objName = "Load from depth data";
 	this._bDepthMap = false;
 
+	// use copy to avoid influence by overwriting elements in this method
+	array = array.slice(0, array.length)
+
 	var width = parseInt(this._divEle.style.width, 10);
 	var height = parseInt(this._divEle.style.height, 10);
-
-	console.log(width, height);
 
 	// avoid processing every pixels for performance
 	var dx = 4;
@@ -261,8 +288,24 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 
 	var arMax = -1;
 	var arMin = 256;
+	var countValid = 0;
 	for (var i=0;i<array.length;i++) {
 		if (array[i] < thClip) {
+			array[i] = 0;
+			continue;
+		}
+		countValid++;
+	}
+	// sort in descending order to find thredhold array element value for clipping
+	var sorted = array.slice(0, array.length);
+	sorted.sort(function(e1, e2) {
+		if( e1 > e2 ) return -1;
+		if( e1 < e2 ) return 1;
+		return 0;
+	});
+	var thVal = sorted[Math.floor(countValid*(1.0-this._clipRatio))];
+	for (var i=0;i<array.length;i++) {
+		if (array[i] < thVal) {
 			array[i] = 0;
 			continue;
 		}
@@ -331,19 +374,6 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 					[uvs[i2], uvs[i3], uvs[i4]]
 				);
 			}
-			
-			/*
-			var b = x + y * width;
-			var m = (x + y) & 1;
-			geometry.faces.push(
-				new THREE.Face3(b + 0, b +  1, b + 65, null, null, m),
-				new THREE.Face3(b + 1, b + 66, b + 65, null, null, m)
-			);
-			geometry.faceVertexUvs[0].push(
-				[uvs[b + 0], uvs[b +  1], uvs[b + 65]],
-				[uvs[b + 1], uvs[b + 66], uvs[b + 65]]
-			);
-			*/
 		}
 	}
 
@@ -462,20 +492,6 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 		}
 	}
 	
-/*
-	// args:width, height, nPlanesX, nPlanesY
-	var geometry = new THREE.PlaneBufferGeometry(width, height, width-1, height-1);
-	//geometry.rotateX( - Math.PI / 2 );
-	var vertices = geometry.attributes.position.array;
-	for (var x=0;x<width+1;x++) {
-		for (var y=0;y<height+1;y++) {
-			var index = (y*(width+1)+x);
-			vertices[index * 3 + 2] = array[index];
-		}
-	}
-*/
-
-
 	// TODO:want to make it smooth
 	// http://stackoverflow.com/questions/13880497/add-subdivision-to-a-geometry
 	// http://stackoverflow.com/questions/12994175/creating-a-cube-with-rounded-corners-in-three-js
@@ -488,45 +504,25 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 	geometry.computeVertexNormals();
 
 	var mesh = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial() );
-//	var mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial() );
-//	var mesh = new THREE.Mesh( geometry, new THREE.MeshDepthMaterial() );
-//	console.log(geometry);
+	//var mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial() );
+	//var mesh = new THREE.Mesh( geometry, new THREE.MeshDepthMaterial() );
 
-/*
-	// Bounding box
-	var bbox = new THREE.BoundingBoxHelper( mesh, 0xff0000 );
-	bbox.update();
-	var bmax = bbox.box.max;
-	var bmin = bbox.box.min;
-
-	var xyAbsMax = Math.max(Math.max(Math.abs(bmax.x), Math.abs(bmin.x)), Math.max(Math.abs(bmax.y), Math.abs(bmin.y)));
-
-	//_this._camera.position.z = bmax.z - bmin.z + 2*xyAbsMax;
-	var zObjMax = Math.max(Math.abs(bmax.z), Math.abs(bmin.z));
-	var distObjCamera = xyAbsMax*(1.0/Math.tan(22.5*Math.PI/180));
-	_this._camera.position.z =  + zObjMax + distObjCamera;
-	var xyzAbsMax = Math.max(Math.max(Math.abs(bmax.z), Math.abs(bmin.z)), xyAbsMax);
-	_this._camera.near = 0;//_this._camera.position.z * 0.8 -  xyzAbsMax;//     0.7*distObjCamera;
-	_this._camera.far = bmax.z - bmin.z + 4.5*distObjCamera;
-	_this._camera.updateProjectionMatrix();
-	
-	console.log(_this._camera.position.z);
-	console.log(_this._camera.near);
-	console.log(_this._camera.far);
-	console.log(distObjCamera);
-	console.log(xyAbsMax);
-*/
+	if (_this._scene.children.indexOf(_this._loadUint8ArrayMesh) > -1) {
+		// remove mesh from scene added in previous call
+		_this._scene.remove(_this._loadUint8ArrayMesh);
+	}
 	_this._scene.add( mesh );
+	// store to remove in next call
+	_this._loadUint8ArrayMesh = mesh;
 
-	// last from here
-	var directionalLight = new THREE.DirectionalLight( 0x808080 );
-	directionalLight.position.set( -1000, 1000, 0 );
-	
-	console.log(directionalLight);
-	
-	_this._directionalLight = directionalLight;
-	_this._scene.add( directionalLight );
-
+	// add directional light if scene does not contain it
+	if (_this._scene.children.indexOf(_this._directionalLight) < 0) {
+		var directionalLight = new THREE.DirectionalLight( 0x808080 );
+		directionalLight.position.set( -1000, 1000, 0 );
+		
+		_this._directionalLight = directionalLight;
+		_this._scene.add( directionalLight );
+	}
 
 	_this._camera.position.z = 2000;
 	_this._camera.near = 0.1;
