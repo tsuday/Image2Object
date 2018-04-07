@@ -78,6 +78,7 @@
 						<br>
 					</div>
 					Camera : forward <input name="cameraPositionZ" id="cameraPositionZ" type="range" value="2000" min="1000" max="4000"> backward <br>
+					Exaggerate Depth : <input name="clipRatio" id="clipRatio" type="range" value="0.1" min="0.0" max="0.2" step="0.0025"> <br>
 				</td>
 			</tr>
 		</table>
@@ -122,6 +123,7 @@
 				return cookieValue;
 			}
 			
+			var meshData = null; // Uint8Array holding predicted depth image data
 			var predict3D = function() {
 				var dataURL = drawCanvas.toDataURL("image/png");
 				
@@ -152,7 +154,7 @@
 					img.onload = function() {
 						ctx.drawImage(img, 0, 0, nWidth, nHeight);
 
-						var meshData = new Uint8Array(nWidth*nHeight);
+						meshData = new Uint8Array(nWidth*nHeight);
 						var pixelData = ctx.getImageData(0, 0, nWidth, nHeight).data;
 						for (var x=0;x<nWidth;x++) {
 							for (var y=0;y<nHeight;y++) {
@@ -258,6 +260,15 @@
 			};
 			var cameraPositionZ = document.getElementById("cameraPositionZ");
 			cameraPositionZ.addEventListener("input", updateCameraPosition, false);
+
+			var clipRatio = function() {
+				canvasScene.setClipRatio(clipRatioSlider.value);
+				canvasScene.loadUint8Array(meshData);
+				canvasScene.animate();
+			};
+			var clipRatioSlider = document.getElementById("clipRatio");
+			clipRatioSlider.addEventListener("input", clipRatio, false);
+
 		</script>
 
 	</body>
