@@ -258,12 +258,16 @@ ObjCanvas.prototype._loadUint8ArrayMesh = null;
  * @param array {Uint8Array} Array obtained from depth map image.
  *     Size of the array should be width * height of div element
  *     specified by argument of constructor.
+ * @param [isSmooth] {boolean} Option to make 3D model smooth.
+ *     Note that smoothing requires time cost.
+ *     Default value is false.
  * @deprecated This method is under development.
  */
-ObjCanvas.prototype.loadUint8Array = function (array) {
+ObjCanvas.prototype.loadUint8Array = function (array, isSmooth) {
 	var _this = this;
 	this._objName = "Load from depth data";
 	this._bDepthMap = false;
+	isSmooth = (isSmooth===undefined||isSmooth===null) ? false : isSmooth;
 
 	// use copy to avoid influence by overwriting elements in this method
 	array = array.slice(0, array.length)
@@ -492,11 +496,17 @@ ObjCanvas.prototype.loadUint8Array = function (array) {
 		}
 	}
 	
-	// TODO:want to make it smooth
-	// http://stackoverflow.com/questions/13880497/add-subdivision-to-a-geometry
-	// http://stackoverflow.com/questions/12994175/creating-a-cube-with-rounded-corners-in-three-js
-	//var modifier = new THREE.SubdivisionModifier(2);
-	//modifier.modify( geometry );
+	if (isSmooth) {
+		// http://stackoverflow.com/questions/13880497/add-subdivision-to-a-geometry
+		// http://stackoverflow.com/questions/12994175/creating-a-cube-with-rounded-corners-in-three-js
+
+		// merge to remove unnecessary vertices
+		geometry.mergeVertices();
+
+		var divisions = 2; // 3 is too heavy
+		var modifier = new THREE.SubdivisionModifier(divisions);
+		modifier.modify( geometry );
+	}
 
 	geometry.rotateZ(Math.PI);
 
